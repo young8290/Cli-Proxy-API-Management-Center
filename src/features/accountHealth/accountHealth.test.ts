@@ -145,4 +145,24 @@ describe('deriveAccountHealth', () => {
       nextRetryAfter: 'backend-retry-marker',
     });
   });
+
+  test('uses the first non-blank backend error message across field aliases', () => {
+    expect(
+      deriveAccountHealth({
+        name: 'blank-snake-message.json',
+        status: 'active',
+        status_message: '   ',
+        statusMessage: 'camelCase backend error',
+      })
+    ).toEqual({ kind: 'error', message: 'camelCase backend error' });
+
+    expect(
+      deriveAccountHealth({
+        name: 'conflicting-messages.json',
+        status: 'active',
+        status_message: 'snake_case backend error',
+        statusMessage: 'camelCase backend error',
+      })
+    ).toEqual({ kind: 'error', message: 'snake_case backend error' });
+  });
 });

@@ -81,8 +81,9 @@ export const accountTimestamp = (item: AuthFileItem): number | null => {
 
 export const deriveAccountHealth = (item: AuthFileItem): AccountHealth => {
   const status = typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
-  const rawMessage = item['status_message'] ?? item.statusMessage;
-  const message = typeof rawMessage === 'string' ? rawMessage.trim() : '';
+  const message = [item['status_message'], item.statusMessage]
+    .find((value) => typeof value === 'string' && value.trim().length > 0)
+    ?.trim() ?? '';
   const lastRefresh = backendTimestampValue([item.lastRefresh, item['last_refresh']]);
   const nextRetryAfter = backendTimestampValue([
     item['nextRetryAfter'],
