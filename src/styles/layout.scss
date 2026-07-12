@@ -7,7 +7,7 @@
   --sidebar-collapsed-width: 68px;
   --sidebar-active-width: var(--sidebar-panel-width);
   --sidebar-gap: 0px;
-  --floating-control-size: 38px;
+  --floating-control-size: 44px;
 }
 
 .app-shell {
@@ -719,7 +719,6 @@
   display: flex;
   flex-direction: column;
   gap: $spacing-lg;
-  overflow-x: hidden;
 
   &.main-content-logs {
     flex: 1 1 auto;
@@ -749,7 +748,7 @@
     --header-height: 74px;
     --shell-gutter: 12px;
     --sidebar-panel-width: min(280px, calc(100vw - 24px));
-    --floating-control-size: 36px;
+    --floating-control-size: 44px;
   }
 
   .top-gradient-blur {

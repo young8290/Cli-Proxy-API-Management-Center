@@ -25,16 +25,18 @@
   --border-primary: #d5d2cb;
   --border-hover: #cecac4;
 
-  --primary-color: #8b8680; // 行动色（主色）
-  --primary-hover: #7f7a74;
-  --primary-active: #726d67;
+  --primary-color: #726d67; // 行动色（主色），与白色文字达到 AA 对比度
+  --primary-hover: #625d58;
+  --primary-active: #55504b;
   --primary-contrast: #ffffff;
 
-  --success-color: #10b981;
+  --success-color: #0f7a59;
   --quota-medium-color: #e0aa14;
-  --warning-color: #c65746; // 错误/警告色
-  --error-color: #c65746;
-  --danger-color: var(--error-color);
+  --warning-color: #8a3a30;
+  --error-color: #a33f31;
+  --danger-color: #a33f31;
+  --danger-hover: #8e3429;
+  --danger-contrast: #ffffff;
   --info-color: var(--primary-color);
 
   --warning-bg: rgba(198, 87, 70, 0.12);
@@ -103,16 +105,18 @@
   --border-primary: #d9d9d9;
   --border-hover: #cccccc;
 
-  --primary-color: #8b8680;
-  --primary-hover: #7f7a74;
-  --primary-active: #726d67;
+  --primary-color: #726d67;
+  --primary-hover: #625d58;
+  --primary-active: #55504b;
   --primary-contrast: #ffffff;
 
-  --success-color: #10b981;
+  --success-color: #0f7a59;
   --quota-medium-color: #e0aa14;
-  --warning-color: #c65746;
-  --error-color: #c65746;
-  --danger-color: var(--error-color);
+  --warning-color: #8a3a30;
+  --error-color: #a33f31;
+  --danger-color: #a33f31;
+  --danger-hover: #8e3429;
+  --danger-contrast: #ffffff;
   --info-color: var(--primary-color);
 
   --warning-bg: rgba(198, 87, 70, 0.12);
@@ -174,16 +178,18 @@
   --border-primary: #4a453f;
   --border-hover: #5a544d;
 
-  --primary-color: #8b8680;
-  --primary-hover: #9a948e;
-  --primary-active: #a6a099;
-  --primary-contrast: #ffffff;
+  --primary-color: #a6a099;
+  --primary-hover: #b6b0aa;
+  --primary-active: #c7c1bb;
+  --primary-contrast: #151412;
 
-  --success-color: #10b981;
+  --success-color: #6ee7b7;
   --quota-medium-color: #ffd862;
-  --warning-color: #c65746;
-  --error-color: #c65746;
-  --danger-color: var(--error-color);
+  --warning-color: #f1b0a6;
+  --error-color: #f1b0a6;
+  --danger-color: #e98273;
+  --danger-hover: #f1a092;
+  --danger-contrast: #151412;
   --info-color: var(--primary-color);
 
   --warning-bg: rgba(198, 87, 70, 0.22);

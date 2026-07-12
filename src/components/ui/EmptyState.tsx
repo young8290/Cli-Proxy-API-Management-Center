@@ -10,7 +10,7 @@ interface EmptyStateProps {
 export function EmptyState({ title, description, action }: EmptyStateProps) {
   return (
     <div className="empty-state">
-      <div className="empty-content">
+      <div className="empty-content" role="status">
         <div className="empty-icon" aria-hidden="true">
           <IconInbox size={20} />
         </div>

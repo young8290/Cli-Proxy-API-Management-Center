@@ -418,9 +418,15 @@ export function SystemPage() {
           {modelStatus && (
             <div className={`status-badge ${modelStatus.type}`}>{modelStatus.message}</div>
           )}
-          {modelsError && <div className="error-box">{modelsError}</div>}
+          {modelsError && (
+            <div className="error-box" role="alert">
+              {modelsError}
+            </div>
+          )}
           {modelsLoading ? (
-            <div className="hint">{t('common.loading')}</div>
+            <div className="hint" role="status">
+              {t('common.loading')}
+            </div>
           ) : models.length === 0 ? (
             <div className="hint">{t('system_info.models_empty')}</div>
           ) : (

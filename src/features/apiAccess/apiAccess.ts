@@ -16,6 +16,16 @@ export const maskApiKey = (value: string): string => {
   return `${value.slice(0, 4)}${'•'.repeat(8)}${value.slice(-4)}`;
 };
 
+export type CopyFeedback = {
+  messageKey: 'api_access.copy_success' | 'api_access.copy_failed';
+  tone: 'success' | 'error';
+};
+
+export const getCopyFeedback = (copied: boolean): CopyFeedback =>
+  copied
+    ? { messageKey: 'api_access.copy_success', tone: 'success' }
+    : { messageKey: 'api_access.copy_failed', tone: 'error' };
+
 export const filterModelsByQuery = (models: ModelInfo[], query: string): ModelInfo[] => {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) return models;

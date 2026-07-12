@@ -137,7 +137,11 @@ export function QuotaPage() {
         </div>
       </div>
 
-      {error && <div className={styles.errorBox}>{error}</div>}
+      {error && (
+        <div className={styles.errorBox} role="alert">
+          {error}
+        </div>
+      )}
 
       <QuotaSection
         config={CLAUDE_CONFIG}

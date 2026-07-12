@@ -1147,7 +1147,9 @@ export function LogsPage() {
             </div>
 
             {loading ? (
-              <div className="hint">{t('logs.loading')}</div>
+              <div className="hint" role="status">
+                {t('logs.loading')}
+              </div>
             ) : logState.buffer.length > 0 && filteredLines.length > 0 ? (
               <div
                 ref={logViewerRef}
@@ -1329,11 +1331,17 @@ export function LogsPage() {
                 </div>
               )}
 
-              {errorLogsError && <div className="error-box">{errorLogsError}</div>}
+              {errorLogsError && (
+                <div className="error-box" role="alert">
+                  {errorLogsError}
+                </div>
+              )}
 
               <div className={styles.errorPanel}>
                 {loadingErrors ? (
-                  <div className="hint">{t('common.loading')}</div>
+                  <div className="hint" role="status">
+                    {t('common.loading')}
+                  </div>
                 ) : errorLogs.length === 0 ? (
                   <div className="hint">{t('logs.error_logs_empty')}</div>
                 ) : (

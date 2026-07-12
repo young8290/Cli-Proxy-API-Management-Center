@@ -72,6 +72,23 @@ describe('API access workspace helpers', () => {
     expect(masked).not.toContain('1234567890');
   });
 
+  test('derives copy feedback state without retaining the copied secret', () => {
+    const getCopyFeedback = Reflect.get(apiAccess, 'getCopyFeedback');
+
+    expect(typeof getCopyFeedback).toBe('function');
+    if (typeof getCopyFeedback !== 'function') return;
+
+    expect(getCopyFeedback(true)).toEqual({
+      messageKey: 'api_access.copy_success',
+      tone: 'success',
+    });
+    expect(getCopyFeedback(false)).toEqual({
+      messageKey: 'api_access.copy_failed',
+      tone: 'error',
+    });
+    expect(JSON.stringify(getCopyFeedback(true))).not.toContain('sk-live');
+  });
+
   test('filters models case-insensitively by name, alias, or description', () => {
     const filterModelsByQuery = Reflect.get(apiAccess, 'filterModelsByQuery');
 

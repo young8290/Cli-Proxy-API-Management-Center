@@ -368,7 +368,7 @@ export function ProvidersWorkbenchPage({ fixedBrand }: ProvidersWorkbenchPagePro
   // 加载状态
   if (!workbench.snapshot && workbench.isPending) {
     return (
-      <div className={styles.page}>
+      <div className={styles.page} role="status" aria-label={t('common.loading')}>
         <Skeleton height={120} />
         <div className={styles.layout}>
           <Skeleton height={420} />

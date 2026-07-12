@@ -838,7 +838,11 @@ export function AuthFilesPage() {
           </div>
         }
       >
-        {error && <div className={styles.errorBox}>{error}</div>}
+        {error && (
+          <div className={styles.errorBox} role="alert">
+            {error}
+          </div>
+        )}
 
         <div className={styles.filterSection}>
           {renderFilterTags()}

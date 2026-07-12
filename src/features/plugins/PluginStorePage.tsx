@@ -1002,7 +1002,7 @@ export function PluginStorePage() {
 
       {/* ── Alerts ── */}
       {error ? (
-        <div className={styles.errorBox}>
+        <div className={styles.errorBox} role="alert">
           <span>{error.message}</span>
           {error.kind !== 'unsupported' ? (
             <Button variant="secondary" size="sm" onClick={loadStore} disabled={loading}>
@@ -1120,7 +1120,7 @@ export function PluginStorePage() {
 
       {/* ── Plugin Cards ── */}
       {loading ? (
-        <div className={styles.cardGrid}>
+        <div className={styles.cardGrid} role="status" aria-label={t('common.loading')}>
           {Array.from({ length: 6 }, (_, index) => (
             <div key={index} className={styles.skeletonCard}>
               <div className={styles.skeletonHeader}>

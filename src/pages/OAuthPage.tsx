@@ -660,19 +660,22 @@ export function OAuthPage() {
                         </Button>
                       </div>
                       {state.callbackStatus === 'success' && state.status === 'waiting' && (
-                        <div className="status-badge success">
+                        <div className="status-badge success" role="status">
                           {t('auth_login.oauth_callback_status_success')}
                         </div>
                       )}
                       {state.callbackStatus === 'error' && (
-                        <div className="status-badge error">
+                        <div className="status-badge error" role="alert">
                           {t('auth_login.oauth_callback_status_error')} {state.callbackError || ''}
                         </div>
                       )}
                     </div>
                   )}
                   {state.status && state.status !== 'idle' && (
-                    <div className={statusBadgeClassName}>
+                    <div
+                      className={statusBadgeClassName}
+                      role={state.status === 'error' ? 'alert' : 'status'}
+                    >
                       {state.status === 'success'
                         ? getProviderText(provider, 'oauth_status_success')
                         : state.status === 'error'
@@ -744,9 +747,13 @@ export function OAuthPage() {
                 onChange={handleVertexFileChange}
               />
             </div>
-            {vertexState.error && <div className="status-badge error">{vertexState.error}</div>}
+            {vertexState.error && (
+              <div className="status-badge error" role="alert">
+                {vertexState.error}
+              </div>
+            )}
             {vertexState.result && (
-              <div className={styles.connectionBox}>
+              <div className={styles.connectionBox} role="status">
                 <div className={styles.connectionLabel}>{t('vertex_import.result_title')}</div>
                 <div className={styles.keyValueList}>
                   {vertexState.result.projectId && (

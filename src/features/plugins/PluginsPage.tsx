@@ -461,7 +461,11 @@ export function PluginsPage() {
       </div>
 
       {/* ── Alerts ── */}
-      {error ? <div className={styles.errorBox}>{error}</div> : null}
+      {error ? (
+        <div className={styles.errorBox} role="alert">
+          {error}
+        </div>
+      ) : null}
 
       {data && !data.pluginsEnabled ? (
         <div className={styles.warningBox}>{t('plugin_management.global_disabled_hint')}</div>
@@ -542,7 +546,7 @@ export function PluginsPage() {
 
       {/* ── Plugin List ── */}
       {loading ? (
-        <div className={styles.pluginList}>
+        <div className={styles.pluginList} role="status" aria-label={t('common.loading')}>
           {Array.from({ length: 4 }, (_, index) => (
             <div key={index} className={styles.skeletonRow}>
               <div className={styles.skeletonAvatar} />

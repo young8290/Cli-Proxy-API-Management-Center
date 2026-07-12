@@ -1,4 +1,3 @@
-@use 'sass:color';
 @use './variables.scss' as *;
 
 .btn {
@@ -8,6 +7,8 @@
   gap: $spacing-sm;
   border: 1px solid transparent;
   border-radius: $radius-md;
+  min-width: 44px;
+  min-height: 44px;
   padding: 10px 14px;
   font-weight: 600;
   cursor: pointer;
@@ -49,12 +50,13 @@
   }
 
   &.btn-danger {
-    background-color: $error-color;
-    border-color: $error-color;
-    color: #fff;
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+    color: var(--danger-contrast, #fff);
 
     &:hover {
-      background-color: color.adjust($error-color, $lightness: -5%);
+      background-color: var(--danger-hover, var(--danger-color));
+      border-color: var(--danger-hover, var(--danger-color));
     }
   }
 
@@ -71,13 +73,14 @@
     opacity: 0.6;
     cursor: not-allowed;
   }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
 }
 
 [data-theme='dark'] {
-  .btn {
-    color: #fff;
-  }
-
   .btn.btn-secondary,
   .btn.btn-ghost {
     color: #fff;
@@ -87,6 +90,7 @@
 .input,
 textarea {
   width: 100%;
+  min-height: 44px;
   border: 1px solid var(--border-color);
   border-radius: $radius-md;
   padding: 10px 12px;
@@ -96,7 +100,7 @@ textarea {
     border-color $transition-fast,
     box-shadow $transition-fast;
 
-  &:focus {
+  &:focus-visible {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba($primary-color, 0.18);
@@ -260,8 +264,8 @@ textarea {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 30px;
-    height: 30px;
+    width: 44px;
+    height: 44px;
     padding: 0;
     background: transparent;
     border: none;
@@ -290,6 +294,11 @@ textarea {
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
   font-size: 12px;
+}
+
+.status-badge,
+.pill {
+  font-variant-numeric: tabular-nums;
 }
 
 .loading-spinner {
@@ -404,8 +413,8 @@ textarea {
   position: absolute;
   top: 12px;
   right: 12px;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -539,6 +548,7 @@ textarea {
   justify-content: space-between;
   gap: $spacing-md;
   align-items: center;
+  overflow-wrap: anywhere;
 
   .empty-content {
     display: flex;
@@ -637,7 +647,8 @@ textarea {
   border: 1px solid rgba($error-color, 0.4);
   border-radius: $radius-md;
   padding: $spacing-sm $spacing-md;
-  color: $error-color;
+  color: var(--error-color);
+  overflow-wrap: anywhere;
 }
 
 .stack {
@@ -648,4 +659,5 @@ textarea {
 
 .hint {
   color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }

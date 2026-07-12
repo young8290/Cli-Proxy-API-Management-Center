@@ -148,6 +148,7 @@ export function ProviderResourcePanel({
               value={filter}
               onChange={(event) => onFilterChange(event.target.value)}
               placeholder={t('providersPage.table.filterPlaceholder')}
+              aria-label={t('providersPage.table.filterPlaceholder')}
             />
           </div>
         </div>

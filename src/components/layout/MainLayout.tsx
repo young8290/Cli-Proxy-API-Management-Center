@@ -736,6 +736,7 @@ export function MainLayout() {
           }`}
           onClick={() => togglePluginResourceDrawer(item.id)}
           title={showSidebarLabels ? undefined : item.label}
+          aria-label={showSidebarLabels ? undefined : item.label}
           aria-expanded={isOpen}
         >
           <span className="nav-icon">{item.icon}</span>
@@ -810,6 +811,7 @@ export function MainLayout() {
             size="sm"
             onClick={handleRefreshAll}
             title={t('header.refresh_all')}
+            aria-label={t('header.refresh_all')}
           >
             {headerIcons.refresh}
           </Button>
@@ -920,7 +922,13 @@ export function MainLayout() {
               </div>
             )}
           </div>
-          <Button variant="ghost" size="sm" onClick={logout} title={t('header.logout')}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={logout}
+            title={t('header.logout')}
+            aria-label={t('header.logout')}
+          >
             {headerIcons.logout}
           </Button>
         </div>

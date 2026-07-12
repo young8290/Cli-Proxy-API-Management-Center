@@ -624,6 +624,9 @@ export function ConfigPage() {
                           onClick={() => executeSearch('next')}
                           disabled={!searchQuery || disableControls || loading}
                           title={t('config_management.search_button', { defaultValue: '搜索' })}
+                          aria-label={t('config_management.search_button', {
+                            defaultValue: '搜索',
+                          })}
                         >
                           <IconSearch size={16} />
                         </button>
@@ -641,6 +644,7 @@ export function ConfigPage() {
                       !searchQuery || lastSearchedQuery !== searchQuery || searchResults.total === 0
                     }
                     title={t('config_management.search_prev', { defaultValue: '上一个' })}
+                    aria-label={t('config_management.search_prev', { defaultValue: '上一个' })}
                   >
                     <IconChevronUp size={16} />
                   </Button>
@@ -652,6 +656,7 @@ export function ConfigPage() {
                       !searchQuery || lastSearchedQuery !== searchQuery || searchResults.total === 0
                     }
                     title={t('config_management.search_next', { defaultValue: '下一个' })}
+                    aria-label={t('config_management.search_next', { defaultValue: '下一个' })}
                   >
                     <IconChevronDown size={16} />
                   </Button>

@@ -19,6 +19,7 @@ import {
   buildPythonExample,
   deriveApiEndpoints,
   filterModelsByQuery,
+  getCopyFeedback,
   getModelsPanelState,
   maskApiKey,
 } from './apiAccess';
@@ -118,10 +119,8 @@ export function ApiAccessPage() {
 
   const handleCopy = async (value: string, label: string) => {
     const copied = await copyToClipboard(value);
-    showNotification(
-      copied ? t('api_access.copy_success', { label }) : t('api_access.copy_failed', { label }),
-      copied ? 'success' : 'error'
-    );
+    const feedback = getCopyFeedback(copied);
+    showNotification(t(feedback.messageKey, { label }), feedback.tone);
   };
 
   const toggleKeyVisibility = (index: number) => {
@@ -142,7 +141,9 @@ export function ApiAccessPage() {
       <div className={styles.container}>
         <h1 className={styles.pageTitle}>{t('api_access.title')}</h1>
         <Card>
-          <p className={styles.errorText}>{t('api_access.connection_unavailable')}</p>
+          <p className={styles.errorText} role="alert">
+            {t('api_access.connection_unavailable')}
+          </p>
         </Card>
       </div>
     );
@@ -202,8 +203,16 @@ export function ApiAccessPage() {
             <span className={styles.countBadge}>{apiKeys.length}</span>
           </div>
 
-          {keysLoading ? <p className={styles.mutedText}>{t('api_access.keys_loading')}</p> : null}
-          {keysError ? <p className={styles.errorText}>{keysError}</p> : null}
+          {keysLoading ? (
+            <p className={styles.mutedText} role="status">
+              {t('api_access.keys_loading')}
+            </p>
+          ) : null}
+          {keysError ? (
+            <p className={styles.errorText} role="alert">
+              {keysError}
+            </p>
+          ) : null}
           {!keysLoading && !keysError && apiKeys.length === 0 ? (
             <p className={styles.emptyText}>{t('api_access.keys_empty')}</p>
           ) : null}
@@ -270,9 +279,15 @@ export function ApiAccessPage() {
           </label>
 
           {modelsPanelState === 'loading' ? (
-            <p className={styles.mutedText}>{t('api_access.models_loading')}</p>
+            <p className={styles.mutedText} role="status">
+              {t('api_access.models_loading')}
+            </p>
           ) : null}
-          {modelsPanelState === 'error' ? <p className={styles.errorText}>{modelsError}</p> : null}
+          {modelsPanelState === 'error' ? (
+            <p className={styles.errorText} role="alert">
+              {modelsError}
+            </p>
+          ) : null}
           {modelsPanelState === 'empty' || modelsPanelState === 'no-results' ? (
             <p className={styles.emptyText}>
               {modelsPanelState === 'empty'
