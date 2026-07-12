@@ -41,6 +41,85 @@ export type ApiKeyUsageResponse = Record<
   >
 >;
 
+export type ApiKeyUsageDistribution = {
+  name: string;
+  success: number;
+  failed: number;
+};
+
+export type ApiKeyUsageSummary = {
+  total: number;
+  success: number;
+  failed: number;
+  providers: ApiKeyUsageDistribution[];
+  accounts: ApiKeyUsageDistribution[];
+  models: ApiKeyUsageDistribution[];
+  failures: Array<{ provider: string; account: string; time?: string; count: number }>;
+};
+
+const maskedAccountLabel = (provider: string, compositeKey: string): string => {
+  const separator = compositeKey.lastIndexOf('|');
+  const baseUrl = separator >= 0 ? compositeKey.slice(0, separator) : '';
+  let origin = baseUrl;
+  try {
+    origin = new URL(baseUrl).host;
+  } catch {
+    // Keep the non-secret base URL text when it is not a complete URL.
+  }
+  return `${origin || provider} · ••••${compositeKey.slice(separator + 1).slice(-4)}`;
+};
+
+const sortedDistributions = (
+  values: Map<string, { success: number; failed: number }>
+): ApiKeyUsageDistribution[] =>
+  [...values].map(([name, counts]) => ({ name, ...counts })).sort((left, right) => {
+    const volumeDifference = right.success + right.failed - (left.success + left.failed);
+    return volumeDifference || left.name.localeCompare(right.name);
+  });
+
+export function summarizeApiKeyUsage(input: ApiKeyUsageResponse): ApiKeyUsageSummary {
+  let success = 0;
+  let failed = 0;
+  const providers = new Map<string, { success: number; failed: number }>();
+  const accounts = new Map<string, { success: number; failed: number }>();
+  const models = new Map<string, { success: number; failed: number }>();
+  const failures: ApiKeyUsageSummary['failures'] = [];
+
+  Object.entries(input).forEach(([provider, entries]) => {
+    Object.entries(entries).forEach(([compositeKey, raw]) => {
+      const entry = normalizeRecentRequestUsageEntry(raw);
+      const account = maskedAccountLabel(provider, compositeKey);
+      success += entry.success;
+      failed += entry.failed;
+      const providerCounts = providers.get(provider) ?? { success: 0, failed: 0 };
+      providerCounts.success += entry.success;
+      providerCounts.failed += entry.failed;
+      providers.set(provider, providerCounts);
+      accounts.set(account, { success: entry.success, failed: entry.failed });
+
+      const rawRecord = raw as Record<string, unknown>;
+      const model = typeof rawRecord.model === 'string' ? rawRecord.model.trim() : '';
+      if (model) models.set(model, { success: entry.success, failed: entry.failed });
+
+      entry.recentRequests
+        .filter((bucket) => bucket.failed > 0)
+        .forEach((bucket) =>
+          failures.push({ provider, account, time: bucket.time, count: bucket.failed })
+        );
+    });
+  });
+
+  return {
+    total: success + failed,
+    success,
+    failed,
+    providers: sortedDistributions(providers),
+    accounts: sortedDistributions(accounts),
+    models: sortedDistributions(models),
+    failures,
+  };
+}
+
 const RECENT_REQUEST_BLOCK_COUNT = 20;
 const RECENT_REQUEST_BLOCK_DURATION_MS = 10 * 60 * 1000;
 
@@ -167,12 +246,15 @@ export function sumRecentRequests(buckets: RecentRequestBucket[]): {
 }
 
 export function latestRecentRequestTime(buckets: RecentRequestBucket[]): string | undefined {
-  return normalizeRecentRequestBuckets(buckets)
-    .map((bucket) => bucket.time)
-    .filter((time): time is string =>
-      typeof time === 'string' ? Number.isFinite(Date.parse(time)) : false
-    )
-    .sort((left, right) => Date.parse(right) - Date.parse(left))[0];
+  const activeBuckets = normalizeRecentRequestBuckets(buckets).filter(
+    (bucket) => bucket.success + bucket.failed > 0 && bucket.time
+  );
+  const datedBuckets = activeBuckets.filter((bucket) => Number.isFinite(Date.parse(bucket.time!)));
+  if (datedBuckets.length > 0) {
+    return datedBuckets.sort((left, right) => Date.parse(right.time!) - Date.parse(left.time!))[0]
+      ?.time;
+  }
+  return activeBuckets[activeBuckets.length - 1]?.time;
 }
 
 export function statusBarDataFromRecentRequests(buckets: RecentRequestBucket[]): StatusBarData {

@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
-import { latestRecentRequestTime } from '../src/utils/recentRequests';
+import {
+  latestRecentRequestTime,
+  summarizeApiKeyUsage,
+} from '../src/utils/recentRequests';
 import {
   filterQuotaFiles,
   quotaLevelFromState,
@@ -19,6 +22,36 @@ describe('observability workflow gaps', () => {
     expect(latestRecentRequestTime([])).toBeUndefined();
   });
 
+  test('uses the latest non-empty backend time bucket label', () => {
+    expect(
+      latestRecentRequestTime([
+        { time: '10:00-10:10', success: 1, failed: 0 },
+        { time: '10:10-10:20', success: 0, failed: 2 },
+        { time: '10:20-10:30', success: 0, failed: 0 },
+      ])
+    ).toBe('10:10-10:20');
+  });
+
+  test('summarizes providers and masked accounts without inventing model data', () => {
+    const summary = summarizeApiKeyUsage({
+      codex: {
+        'https://relay.example/v1|super-secret-key': {
+          success: 8,
+          failed: 2,
+          recent_requests: [{ time: '10:00-10:10', success: 0, failed: 2 }],
+        },
+      },
+    });
+
+    expect(summary.total).toBe(10);
+    expect(summary.providers).toEqual([{ name: 'codex', success: 8, failed: 2 }]);
+    expect(summary.accounts).toHaveLength(1);
+    expect(summary.accounts[0]?.name).toContain('relay.example');
+    expect(summary.accounts[0]?.name).not.toContain('super-secret-key');
+    expect(summary.models).toEqual([]);
+    expect(summary.failures[0]).toMatchObject({ provider: 'codex', count: 2 });
+  });
+
   test('filters quota records by provider and presented level', () => {
     const records: QuotaFilterRecord[] = [
       { name: 'a', provider: 'claude', level: 'critical' },
@@ -30,12 +63,24 @@ describe('observability workflow gaps', () => {
 
   test('derives the most constrained level from real loaded quota state', () => {
     expect(
-      quotaLevelFromState({
+      quotaLevelFromState('codex', {
         status: 'success',
-        windows: [{ remainingPercent: 80 }, { remainingPercent: 8 }],
+        windows: [{ usedPercent: 20 }, { usedPercent: 92 }],
       })
     ).toBe('critical');
-    expect(quotaLevelFromState({ status: 'idle' })).toBe('unknown');
+    expect(
+      quotaLevelFromState('antigravity', {
+        status: 'success',
+        groups: [{ buckets: [{ remainingFraction: 0.15 }] }],
+      })
+    ).toBe('low');
+    expect(
+      quotaLevelFromState('kimi', {
+        status: 'success',
+        rows: [{ used: 75, limit: 100 }],
+      })
+    ).toBe('sufficient');
+    expect(quotaLevelFromState('codex', { status: 'idle' })).toBe('unknown');
   });
 
   test('wires a standalone request statistics route and navigation item', () => {
@@ -43,5 +88,13 @@ describe('observability workflow gaps', () => {
     const layout = readFileSync('src/components/layout/MainLayout.tsx', 'utf8');
     expect(routes).toContain("path: '/request-stats'");
     expect(layout).toContain("path: '/request-stats'");
+  });
+
+  test('request statistics page renders real account distribution and honest runtime context', () => {
+    const page = readFileSync('src/pages/RequestStatsPage.tsx', 'utf8');
+    expect(page).toContain('summarizeApiKeyUsage(data)');
+    expect(page).toContain("t('request_stats.observation_started'");
+    expect(page).toContain("t('request_stats.restart_notice')");
+    expect(page).not.toContain("<p>{t('request_stats.unavailable')}</p>\n            <h2>{t('request_stats.by_account')}");
   });
 });

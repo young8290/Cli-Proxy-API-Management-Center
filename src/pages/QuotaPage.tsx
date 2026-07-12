@@ -81,6 +81,7 @@ export function QuotaPage() {
         (providerFilter === 'all' || resolveAuthProvider(file) === providerFilter) &&
         (levelFilter === 'all' ||
           quotaLevelFromState(
+            resolveAuthProvider(file),
             quotaState[resolveAuthProvider(file) as keyof typeof quotaState]?.[file.name]
           ) === levelFilter) &&
         (!query ||

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { apiKeyUsageApi } from '@/services/api/apiKeyUsage';
-import { normalizeRecentRequestUsageEntry, type ApiKeyUsageResponse } from '@/utils/recentRequests';
+import { summarizeApiKeyUsage, type ApiKeyUsageResponse } from '@/utils/recentRequests';
 import styles from './QuotaPage.module.scss';
 
 export function RequestStatsPage() {
@@ -25,36 +25,7 @@ export function RequestStatsPage() {
   useEffect(() => {
     void load();
   }, [load]);
-  const summary = useMemo(
-    () =>
-      Object.entries(data).reduce(
-        (result, [provider, entries]) => {
-          Object.values(entries).forEach((raw) => {
-            const entry = normalizeRecentRequestUsageEntry(raw);
-            result.success += entry.success;
-            result.failed += entry.failed;
-            const current = result.providers.get(provider) ?? { success: 0, failed: 0 };
-            current.success += entry.success;
-            current.failed += entry.failed;
-            result.providers.set(provider, current);
-            entry.recentRequests
-              .filter((bucket) => bucket.failed > 0)
-              .forEach((bucket) =>
-                result.failures.push({ provider, time: bucket.time, count: bucket.failed })
-              );
-          });
-          return result;
-        },
-        {
-          success: 0,
-          failed: 0,
-          providers: new Map<string, { success: number; failed: number }>(),
-          failures: [] as { provider: string; time?: string; count: number }[],
-        }
-      ),
-    [data]
-  );
-  const total = summary.success + summary.failed;
+  const summary = useMemo(() => summarizeApiKeyUsage(data), [data]);
   return (
     <main className={styles.container} aria-busy={loading}>
       <div className={styles.pageHeader}>
@@ -75,7 +46,7 @@ export function RequestStatsPage() {
           <dl className={styles.quotaLegend}>
             <div>
               <dt>{t('request_stats.total')}</dt>
-              <dd>{total}</dd>
+              <dd>{summary.total}</dd>
             </div>
             <div>
               <dt>{t('stats.success')}</dt>
@@ -87,27 +58,48 @@ export function RequestStatsPage() {
             </div>
             <div>
               <dt>{t('request_stats.success_rate')}</dt>
-              <dd>{total ? `${((summary.success / total) * 100).toFixed(1)}%` : '—'}</dd>
+              <dd>
+                {summary.total
+                  ? `${((summary.success / summary.total) * 100).toFixed(1)}%`
+                  : '—'}
+              </dd>
             </div>
           </dl>
           <p>
-            {t('request_stats.period', {
+            {t('request_stats.observation_started', {
               time: sessionStart.toLocaleString(i18n.language),
             })}
           </p>
+          <p>{t('request_stats.restart_notice')}</p>
           <section>
             <h2>{t('request_stats.by_provider')}</h2>
-            {[...summary.providers].map(([name, value]) => (
-              <p key={name}>
-                {name}: {value.success + value.failed}
+            {summary.providers.map((value) => (
+              <p key={value.name}>
+                {value.name}: {value.success + value.failed}
               </p>
             ))}
           </section>
           <section>
             <h2>{t('request_stats.by_model')}</h2>
-            <p>{t('request_stats.unavailable')}</p>
+            {summary.models.length ? (
+              summary.models.map((value) => (
+                <p key={value.name}>
+                  {value.name}: {value.success + value.failed}
+                </p>
+              ))
+            ) : (
+              <p>{t('request_stats.unavailable')}</p>
+            )}
             <h2>{t('request_stats.by_account')}</h2>
-            <p>{t('request_stats.unavailable')}</p>
+            {summary.accounts.length ? (
+              summary.accounts.map((value) => (
+                <p key={value.name}>
+                  {value.name}: {value.success + value.failed}
+                </p>
+              ))
+            ) : (
+              <p>{t('request_stats.unavailable')}</p>
+            )}
           </section>
           <section>
             <h2>{t('request_stats.recent_failures')}</h2>
@@ -117,8 +109,8 @@ export function RequestStatsPage() {
                 .reverse()
                 .map((failure, index) => (
                   <p key={`${failure.provider}-${failure.time}-${index}`}>
-                    {failure.provider} · {failure.time ?? t('request_stats.time_unavailable')} ·{' '}
-                    {failure.count}
+                    {failure.provider} · {failure.account} ·{' '}
+                    {failure.time ?? t('request_stats.time_unavailable')} · {failure.count}
                   </p>
                 ))
             ) : (
