@@ -27,7 +27,8 @@ const filterAndSortAuthFiles = uiState.filterAndSortAuthFiles as (
 ) => AuthFileItem[];
 
 const buildAuthFileQuotaDiagnostics = uiState.buildAuthFileQuotaDiagnostics as (
-  snapshot: QuotaSnapshot
+  snapshot: QuotaSnapshot,
+  files: readonly AuthFileItem[]
 ) => Map<string, { remainingPercent: number | null; low: boolean }>;
 
 describe('auth file health filtering', () => {
@@ -125,8 +126,9 @@ describe('auth file health filtering', () => {
   });
 
   test('derives low quota diagnostics from the real provider quota shapes', () => {
-    const diagnostics = buildAuthFileQuotaDiagnostics({
-      antigravityQuota: {
+    const diagnostics = buildAuthFileQuotaDiagnostics(
+      {
+        antigravityQuota: {
         'ag.json': {
           status: 'success',
           groups: [{ buckets: [{ remainingFraction: 0.15 }] }],
@@ -143,13 +145,40 @@ describe('auth file health filtering', () => {
       },
       xaiQuota: {
         'xai.json': { status: 'success', billing: { usedPercent: 75 } },
+        },
       },
-    });
+      [
+        { name: 'ag.json', type: 'antigravity' },
+        { name: 'claude.json', type: 'claude' },
+        { name: 'codex.json', type: 'codex' },
+        { name: 'kimi.json', type: 'kimi' },
+        { name: 'xai.json', type: 'xai' },
+      ]
+    );
 
     expect(diagnostics.get('ag.json')).toMatchObject({ remainingPercent: 15, low: true });
     expect(diagnostics.get('claude.json')).toMatchObject({ remainingPercent: 10, low: true });
     expect(diagnostics.get('codex.json')).toMatchObject({ remainingPercent: 60, low: false });
     expect(diagnostics.get('kimi.json')).toMatchObject({ remainingPercent: 5, low: true });
     expect(diagnostics.get('xai.json')).toMatchObject({ remainingPercent: 25, low: false });
+  });
+
+  test('uses only the current provider store after a same-name provider migration', () => {
+    const diagnostics = buildAuthFileQuotaDiagnostics(
+      {
+        antigravityQuota: {},
+        claudeQuota: {
+          'account.json': { status: 'success', windows: [{ usedPercent: 90 }] },
+        },
+        codexQuota: {},
+        kimiQuota: {},
+        xaiQuota: {
+          'account.json': { status: 'success', billing: { usedPercent: 10 } },
+        },
+      },
+      [{ name: 'account.json', type: 'claude', provider: 'anthropic' }]
+    );
+
+    expect(diagnostics.get('account.json')).toMatchObject({ remainingPercent: 10, low: true });
   });
 });

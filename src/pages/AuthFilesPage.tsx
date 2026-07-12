@@ -251,8 +251,8 @@ export function AuthFilesPage() {
         codexQuota,
         kimiQuota,
         xaiQuota,
-      }),
-    [antigravityQuota, claudeQuota, codexQuota, kimiQuota, xaiQuota]
+      }, files),
+    [antigravityQuota, claudeQuota, codexQuota, files, kimiQuota, xaiQuota]
   );
   const lowQuotaNames = useMemo(
     () =>

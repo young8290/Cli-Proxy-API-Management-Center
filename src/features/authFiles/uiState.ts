@@ -119,47 +119,50 @@ const diagnostic = (
 });
 
 export const buildAuthFileQuotaDiagnostics = (
-  snapshot: AuthFileQuotaSnapshot
+  snapshot: AuthFileQuotaSnapshot,
+  files: readonly AuthFileItem[]
 ): Map<string, AuthFileQuotaDiagnostic> => {
   const result = new Map<string, AuthFileQuotaDiagnostic>();
 
-  Object.entries(snapshot.antigravityQuota).forEach(([name, state]) => {
-    const remaining = minimumPercent(
-      state.groups.flatMap((group) =>
-        group.buckets.map((bucket) => finitePercent(bucket.remainingFraction * 100))
-      )
-    );
-    result.set(name, diagnostic(state, remaining));
-  });
-  Object.entries(snapshot.claudeQuota).forEach(([name, state]) => {
-    const remaining = minimumPercent(
-      state.windows.map((window) => {
-        const used = finitePercent(window.usedPercent);
-        return used === null ? null : 100 - used;
-      })
-    );
-    result.set(name, diagnostic(state, remaining));
-  });
-  Object.entries(snapshot.codexQuota).forEach(([name, state]) => {
-    const remaining = minimumPercent(
-      state.windows.map((window) => {
-        const used = finitePercent(window.usedPercent);
-        return used === null ? null : 100 - used;
-      })
-    );
-    result.set(name, diagnostic(state, remaining));
-  });
-  Object.entries(snapshot.kimiQuota).forEach(([name, state]) => {
-    const remaining = minimumPercent(
-      state.rows.map((row) =>
-        row.limit > 0 ? finitePercent(((row.limit - row.used) / row.limit) * 100) : null
-      )
-    );
-    result.set(name, diagnostic(state, remaining));
-  });
-  Object.entries(snapshot.xaiQuota).forEach(([name, state]) => {
-    const used = finitePercent(state.billing?.usedPercent ?? state.billing?.usagePercent);
-    result.set(name, diagnostic(state, used === null ? null : 100 - used));
+  files.forEach((file) => {
+    const provider = resolveAuthProvider(file);
+    if (provider === 'antigravity') {
+      const state = snapshot.antigravityQuota[file.name];
+      if (!state) return;
+      const remaining = minimumPercent(
+        state.groups.flatMap((group) =>
+          group.buckets.map((bucket) => finitePercent(bucket.remainingFraction * 100))
+        )
+      );
+      result.set(file.name, diagnostic(state, remaining));
+    } else if (provider === 'claude' || provider === 'codex') {
+      const state =
+        provider === 'claude'
+          ? snapshot.claudeQuota[file.name]
+          : snapshot.codexQuota[file.name];
+      if (!state) return;
+      const remaining = minimumPercent(
+        state.windows.map((window) => {
+          const used = finitePercent(window.usedPercent);
+          return used === null ? null : 100 - used;
+        })
+      );
+      result.set(file.name, diagnostic(state, remaining));
+    } else if (provider === 'kimi') {
+      const state = snapshot.kimiQuota[file.name];
+      if (!state) return;
+      const remaining = minimumPercent(
+        state.rows.map((row) =>
+          row.limit > 0 ? finitePercent(((row.limit - row.used) / row.limit) * 100) : null
+        )
+      );
+      result.set(file.name, diagnostic(state, remaining));
+    } else if (provider === 'xai') {
+      const state = snapshot.xaiQuota[file.name];
+      if (!state) return;
+      const used = finitePercent(state.billing?.usedPercent ?? state.billing?.usagePercent);
+      result.set(file.name, diagnostic(state, used === null ? null : 100 - used));
+    }
   });
 
   return result;
