@@ -94,9 +94,10 @@ const isSoon = (value: unknown, now: number): boolean => {
 
 export function buildDashboardQuotaSummary(
   snapshot: DashboardQuotaSnapshot,
-  expected: number,
+  quotaFileNames: readonly string[],
   now = Date.now()
 ): DashboardQuotaSummary {
+  const allowedNames = new Set(quotaFileNames);
   const loaded = new Set<string>();
   const loading = new Set<string>();
   const errors = new Set<string>();
@@ -110,6 +111,7 @@ export function buildDashboardQuotaSummary(
   };
 
   Object.entries(snapshot.antigravityQuota).forEach(([name, state]) => {
+    if (!allowedNames.has(name)) return;
     recordStatus(name, state);
     state.groups.forEach((group) =>
       group.buckets.forEach((bucket) => {
@@ -120,6 +122,7 @@ export function buildDashboardQuotaSummary(
   });
 
   Object.entries(snapshot.claudeQuota).forEach(([name, state]) => {
+    if (!allowedNames.has(name)) return;
     recordStatus(name, state);
     state.windows.forEach((window) => {
       if (isLowRemaining(window.usedPercent === null ? null : 100 - window.usedPercent)) {
@@ -130,6 +133,7 @@ export function buildDashboardQuotaSummary(
   });
 
   Object.entries(snapshot.codexQuota).forEach(([name, state]) => {
+    if (!allowedNames.has(name)) return;
     recordStatus(name, state);
     state.windows.forEach((window) => {
       if (isLowRemaining(window.usedPercent === null ? null : 100 - window.usedPercent)) {
@@ -140,6 +144,7 @@ export function buildDashboardQuotaSummary(
   });
 
   Object.entries(snapshot.kimiQuota).forEach(([name, state]) => {
+    if (!allowedNames.has(name)) return;
     recordStatus(name, state);
     state.rows.forEach((row) => {
       const remaining = row.limit > 0 ? ((row.limit - row.used) / row.limit) * 100 : null;
@@ -149,6 +154,7 @@ export function buildDashboardQuotaSummary(
   });
 
   Object.entries(snapshot.xaiQuota).forEach(([name, state]) => {
+    if (!allowedNames.has(name)) return;
     recordStatus(name, state);
     const usedPercent = state.billing?.usedPercent ?? state.billing?.usagePercent ?? null;
     if (isLowRemaining(usedPercent === null ? null : 100 - usedPercent)) low.add(name);
@@ -158,7 +164,7 @@ export function buildDashboardQuotaSummary(
   });
 
   return {
-    expected,
+    expected: allowedNames.size,
     loaded: loaded.size,
     loading: loading.size,
     errors: errors.size,

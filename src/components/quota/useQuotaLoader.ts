@@ -5,11 +5,7 @@
 import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AuthFileItem } from '@/types';
-import {
-  captureQuotaCacheGeneration,
-  commitIfQuotaCacheCurrent,
-  useQuotaStore,
-} from '@/stores';
+import { captureQuotaCacheGeneration, commitIfQuotaCacheCurrent, useQuotaStore } from '@/stores';
 import { getStatusFromError } from '@/utils/quota';
 import type { QuotaConfig } from './quotaConfigs';
 
@@ -32,13 +28,10 @@ export function useQuotaLoader<TState, TData>(config: QuotaConfig<TState, TData>
     Record<string, TState>
   >;
 
-  const loadingRef = useRef(false);
   const requestIdRef = useRef(0);
 
   const loadQuota = useCallback(
     async (targets: AuthFileItem[], setLoading: (loading: boolean) => void) => {
-      if (loadingRef.current) return;
-      loadingRef.current = true;
       const requestId = ++requestIdRef.current;
       const cacheGeneration = captureQuotaCacheGeneration();
       setLoading(true);
@@ -88,7 +81,6 @@ export function useQuotaLoader<TState, TData>(config: QuotaConfig<TState, TData>
       } finally {
         if (requestId === requestIdRef.current) {
           setLoading(false);
-          loadingRef.current = false;
         }
       }
     },

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -16,6 +16,7 @@ import { apiKeyUsageApi, authFilesApi } from '@/services/api';
 import { useApiKeysForModels } from '@/hooks/useApiKeysForModels';
 import { buildDashboardSummary } from '@/features/dashboard/dashboardSummary';
 import { buildDashboardQuotaSummary } from '@/features/dashboard/dashboardQuotaSummary';
+import { createLatestRequest } from '@/features/dashboard/latestRequest';
 import { useQuotaLoader } from '@/components/quota/useQuotaLoader';
 import {
   ANTIGRAVITY_CONFIG,
@@ -94,6 +95,11 @@ export function DashboardPage() {
   const [configError, setConfigError] = useState<string | null>(null);
   const [quotaLoading, setQuotaLoading] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null);
+  const authRequests = useRef(createLatestRequest()).current;
+  const usageRequests = useRef(createLatestRequest()).current;
+  const configRequests = useRef(createLatestRequest()).current;
+  const quotaRequests = useRef(createLatestRequest()).current;
+  const dashboardRequests = useRef(createLatestRequest()).current;
 
   const quotaConfigs = useMemo(
     () => [CLAUDE_CONFIG, ANTIGRAVITY_CONFIG, CODEX_CONFIG, XAI_CONFIG, KIMI_CONFIG],
@@ -108,6 +114,7 @@ export function DashboardPage() {
 
   const loadQuotas = useCallback(
     async (files: AuthFileItem[]) => {
+      const generation = quotaRequests.begin();
       setQuotaLoading(true);
       const ignoreSectionLoading = () => undefined;
       try {
@@ -119,54 +126,64 @@ export function DashboardPage() {
           loadKimiQuota(files.filter(KIMI_CONFIG.filterFn), ignoreSectionLoading),
         ]);
       } finally {
-        setQuotaLoading(false);
+        quotaRequests.commit(generation, () => setQuotaLoading(false));
       }
     },
-    [loadAntigravityQuota, loadClaudeQuota, loadCodexQuota, loadKimiQuota, loadXaiQuota]
+    [
+      loadAntigravityQuota,
+      loadClaudeQuota,
+      loadCodexQuota,
+      loadKimiQuota,
+      loadXaiQuota,
+      quotaRequests,
+    ]
   );
 
   const loadAuthFiles = useCallback(async () => {
+    const generation = authRequests.begin();
     setAuthFilesLoading(true);
     setAuthFilesError(null);
     try {
       const response = await authFilesApi.list();
-      setAuthFiles(response.files);
+      authRequests.commit(generation, () => setAuthFiles(response.files));
       return response.files;
     } catch (error) {
-      setAuthFilesError(errorMessage(error));
+      authRequests.commit(generation, () => setAuthFilesError(errorMessage(error)));
       throw error;
     } finally {
-      setAuthFilesLoading(false);
+      authRequests.commit(generation, () => setAuthFilesLoading(false));
     }
-  }, []);
+  }, [authRequests]);
 
   const loadUsage = useCallback(async () => {
+    const generation = usageRequests.begin();
     setUsageLoading(true);
     setUsageError(null);
     try {
       const response = await apiKeyUsageApi.getUsage();
-      setUsage(response);
+      usageRequests.commit(generation, () => setUsage(response));
       return response;
     } catch (error) {
-      setUsageError(errorMessage(error));
+      usageRequests.commit(generation, () => setUsageError(errorMessage(error)));
       throw error;
     } finally {
-      setUsageLoading(false);
+      usageRequests.commit(generation, () => setUsageLoading(false));
     }
-  }, []);
+  }, [usageRequests]);
 
   const loadConfig = useCallback(async () => {
+    const generation = configRequests.begin();
     setConfigLoading(true);
     setConfigError(null);
     try {
       return await fetchConfig();
     } catch (error) {
-      setConfigError(errorMessage(error));
+      configRequests.commit(generation, () => setConfigError(errorMessage(error)));
       throw error;
     } finally {
-      setConfigLoading(false);
+      configRequests.commit(generation, () => setConfigLoading(false));
     }
-  }, [fetchConfig]);
+  }, [configRequests, fetchConfig]);
 
   const loadModels = useCallback(async () => {
     if (!apiBase) return [];
@@ -175,6 +192,7 @@ export function DashboardPage() {
   }, [apiBase, fetchModelsFromStore, resolveApiKeysForModels]);
 
   const loadDashboard = useCallback(async () => {
+    const generation = dashboardRequests.begin();
     const authFilesRequest = loadAuthFiles();
     const quotaRequest = authFilesRequest.then(loadQuotas);
     await Promise.allSettled([
@@ -184,8 +202,8 @@ export function DashboardPage() {
       loadConfig(),
       loadModels(),
     ]);
-    setLastRefreshedAt(Date.now());
-  }, [loadAuthFiles, loadConfig, loadModels, loadQuotas, loadUsage]);
+    dashboardRequests.commit(generation, () => setLastRefreshedAt(Date.now()));
+  }, [dashboardRequests, loadAuthFiles, loadConfig, loadModels, loadQuotas, loadUsage]);
 
   const retryAccountsAndQuota = useCallback(async () => {
     try {
@@ -211,9 +229,9 @@ export function DashboardPage() {
     () =>
       buildDashboardQuotaSummary(
         { antigravityQuota, claudeQuota, codexQuota, kimiQuota, xaiQuota },
-        quotaFiles.length
+        quotaFiles.map((file) => file.name)
       ),
-    [antigravityQuota, claudeQuota, codexQuota, kimiQuota, quotaFiles.length, xaiQuota]
+    [antigravityQuota, claudeQuota, codexQuota, kimiQuota, quotaFiles, xaiQuota]
   );
   const serviceUrl = apiBase ? apiBase.replace(/\/+$/, '') : '-';
   const endpoint = serviceUrl === '-' ? '-' : `${serviceUrl}/v1`;

@@ -54,7 +54,7 @@ describe('buildDashboardQuotaSummary', () => {
         kimiQuota: {},
         xaiQuota: {},
       },
-      2,
+      ['ag.json', 'claude.json'],
       now
     );
 
@@ -80,7 +80,7 @@ describe('buildDashboardQuotaSummary', () => {
           kimiQuota: {},
           xaiQuota: {},
         },
-        3,
+        ['broken.json', 'missing-a.json', 'missing-b.json'],
         Date.now()
       )
     ).toEqual({
@@ -88,6 +88,39 @@ describe('buildDashboardQuotaSummary', () => {
       loaded: 0,
       loading: 0,
       errors: 1,
+      low: 0,
+      refreshingSoon: 0,
+    });
+  });
+
+  test('ignores stale quota cache entries outside the current credential whitelist', () => {
+    expect(
+      buildDashboardQuotaSummary(
+        {
+          antigravityQuota: {},
+          claudeQuota: {
+            'current.json': {
+              status: 'success',
+              windows: [{ id: 'one', label: 'One', usedPercent: 10, resetLabel: '-' }],
+            },
+            'deleted.json': {
+              status: 'error',
+              windows: [],
+              error: 'stale failure',
+            },
+          },
+          codexQuota: {},
+          kimiQuota: {},
+          xaiQuota: {},
+        },
+        ['current.json'],
+        Date.now()
+      )
+    ).toEqual({
+      expected: 1,
+      loaded: 1,
+      loading: 0,
+      errors: 0,
       low: 0,
       refreshingSoon: 0,
     });
