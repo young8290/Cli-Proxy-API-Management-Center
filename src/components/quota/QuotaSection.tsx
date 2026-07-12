@@ -190,10 +190,6 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
 
   useEffect(() => {
     if (loading) return;
-    if (providerFiles.length === 0) {
-      setQuota({});
-      return;
-    }
     setQuota((prev) => {
       const nextState: Record<string, TState> = {};
       providerFiles.forEach((file) => {
@@ -202,6 +198,13 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
           nextState[file.name] = cached;
         }
       });
+      const previousNames = Object.keys(prev);
+      const nextNames = Object.keys(nextState);
+      const unchanged =
+        previousNames.length === nextNames.length &&
+        nextNames.every((name) => prev[name] === nextState[name]);
+
+      if (unchanged) return prev;
       return nextState;
     });
   }, [providerFiles, loading, setQuota]);

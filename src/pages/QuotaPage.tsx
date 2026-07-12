@@ -37,13 +37,21 @@ import { quotaLevelFromState } from '@/features/quota/quotaFilters';
 export function QuotaPage() {
   const { t } = useTranslation();
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
-  const quotaState = useQuotaStore((state) => ({
-    antigravity: state.antigravityQuota,
-    claude: state.claudeQuota,
-    codex: state.codexQuota,
-    kimi: state.kimiQuota,
-    xai: state.xaiQuota,
-  }));
+  const antigravityQuota = useQuotaStore((state) => state.antigravityQuota);
+  const claudeQuota = useQuotaStore((state) => state.claudeQuota);
+  const codexQuota = useQuotaStore((state) => state.codexQuota);
+  const kimiQuota = useQuotaStore((state) => state.kimiQuota);
+  const xaiQuota = useQuotaStore((state) => state.xaiQuota);
+  const quotaState = useMemo(
+    () => ({
+      antigravity: antigravityQuota,
+      claude: claudeQuota,
+      codex: codexQuota,
+      kimi: kimiQuota,
+      xai: xaiQuota,
+    }),
+    [antigravityQuota, claudeQuota, codexQuota, kimiQuota, xaiQuota]
+  );
 
   const [files, setFiles] = useState<AuthFileItem[]>([]);
   const [loading, setLoading] = useState(true);
