@@ -119,6 +119,39 @@ The UI language is automatically detected from browser settings and can be manua
 - Tagging `vX.Y.Z` triggers `.github/workflows/release.yml` to publish `dist/management.html`.
 - The UI version shown on the System page is injected at build time (env `VERSION`, git tag, or `package.json` fallback).
 
+### Youngspace deployment and acceptance runbook
+
+1. Run the full verification and prepare the filename expected by CLI Proxy API:
+
+   ```bash
+   bun run verify
+   cp dist/index.html dist/management.html
+   shasum -a 256 dist/management.html
+   ```
+
+2. Before changing the production panel repository, validate the artifact on an isolated port. The test config must use a separate port, an empty isolated auth directory, a `127.0.0.1` bind address, and disabled panel auto-updates:
+
+   ```bash
+   MANAGEMENT_STATIC_PATH="$PWD/dist/management.html" \
+     cliproxyapi -config /path/to/isolated-test.conf
+   curl --noproxy '*' -fsS http://127.0.0.1:<test-port>/management.html \
+     -o /tmp/served-management.html
+   shasum -a 256 /tmp/served-management.html dist/management.html
+   ```
+
+   The two hashes must match. Stop the isolated instance afterward, and never reuse its test config or placeholder keys in production.
+
+3. Production CLI Proxy API should set `usage-statistics-enabled: true` so the dashboard and usage surfaces have data. Create a uniquely named config backup before editing and preserve its permissions. Never place the management secret or relay API key in the repository, release artifact, or deployment notes.
+
+4. Change production `remote-management.panel-github-repository` only after the custom repository has published a GitHub Release containing `management.html`. Restart CLI Proxy API, then verify:
+
+   - `/management.html` returns 200;
+   - `/v0/management/config`, `/auth-files`, `/api-key-usage`, and `/api-keys` are readable with management authentication;
+   - `/v1/models` is readable with a relay API key;
+   - account health, quota/usage, API addresses, models, and copy actions render correctly.
+
+5. To roll back, restore the most recent pre-switch config backup and restart CLI Proxy API. For a panel-only failure, restore the official `panel-github-repository`, clear the CLI Proxy API panel cache, and request `/management.html` again.
+
 ## Security notes
 
 - The management key is stored in browser `localStorage` using a lightweight obfuscation format (`enc::v1::...`) to avoid plaintext storage; treat it as sensitive.

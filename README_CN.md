@@ -119,6 +119,39 @@ bun run build
 - 打 `vX.Y.Z` 标签会触发 `.github/workflows/release.yml`，发布 `dist/management.html`。
 - 系统信息页显示的 UI 版本在构建期注入（优先使用环境变量 `VERSION`，否则使用 git tag / `package.json`）。
 
+### Youngspace 部署与验收流程
+
+1. 完整验证并准备 CPA 所需的文件名：
+
+   ```bash
+   bun run verify
+   cp dist/index.html dist/management.html
+   shasum -a 256 dist/management.html
+   ```
+
+2. 在切换线上面板仓库之前，先用隔离端口验证构建产物。测试配置应使用独立端口、独立空认证目录、仅监听 `127.0.0.1`，并关闭面板自动更新：
+
+   ```bash
+   MANAGEMENT_STATIC_PATH="$PWD/dist/management.html" \
+     cliproxyapi -config /path/to/isolated-test.conf
+   curl --noproxy '*' -fsS http://127.0.0.1:<test-port>/management.html \
+     -o /tmp/served-management.html
+   shasum -a 256 /tmp/served-management.html dist/management.html
+   ```
+
+   两个哈希必须一致。测试结束后停止隔离实例，不要把测试配置或占位密钥用于生产。
+
+3. 生产 CPA 配置应启用 `usage-statistics-enabled: true`，以支持仪表盘和用量页。修改前为配置文件创建唯一备份，并保持备份权限不变。管理密钥与代理 API Key 不得写入仓库、发布产物或部署记录。
+
+4. 只有在自定义仓库已经发布包含 `management.html` 的 GitHub Release 后，才把生产配置中的 `remote-management.panel-github-repository` 切换到该仓库。重启 CPA 后依次验收：
+
+   - `/management.html` 返回 200；
+   - `/v0/management/config`、`/auth-files`、`/api-key-usage`、`/api-keys` 可通过管理鉴权只读访问；
+   - `/v1/models` 可通过代理 API Key 访问；
+   - 页面上的账号状态、额度/用量、API 地址、模型与复制操作正常。
+
+5. 回滚时恢复最近一次切换前的配置备份并重启 CPA。若只是面板版本异常，也可先把 `panel-github-repository` 恢复为官方仓库，再清理 CPA 的面板缓存并重新访问 `/management.html`。
+
 ## 安全提示
 
 - 管理密钥会存入浏览器 `localStorage`，并使用轻量混淆格式（`enc::v1::...`）避免明文；仍应视为敏感信息。
