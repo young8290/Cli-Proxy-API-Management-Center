@@ -291,7 +291,16 @@ export function AuthFileCard(props: AuthFileCardProps) {
                 className={`${styles.diagnosticItem} ${diagnosticError ? styles.diagnosticError : ''}`}
               >
                 <dt>{t('auth_files.diagnostic_error')}</dt>
-                <dd title={diagnosticError}>{diagnosticError || '-'}</dd>
+                <dd>
+                  {diagnosticError ? (
+                    <details>
+                      <summary>{diagnosticError}</summary>
+                      <div>{diagnosticError}</div>
+                    </details>
+                  ) : (
+                    '-'
+                  )}
+                </dd>
               </div>
             </dl>
             <div className={`${styles.cardStats} ${compact ? styles.cardStatsCompact : ''}`}>

@@ -17,6 +17,14 @@ import { useInterval } from '@/hooks/useInterval';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { useActionBarHeightVar } from '@/hooks/useActionBarHeightVar';
 import { usePageTransitionLayer } from '@/components/common/PageTransitionLayer';
+import { useQuotaLoader } from '@/components/quota/useQuotaLoader';
+import {
+  ANTIGRAVITY_CONFIG,
+  CLAUDE_CONFIG,
+  CODEX_CONFIG,
+  KIMI_CONFIG,
+  XAI_CONFIG,
+} from '@/components/quota/quotaConfigs';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -64,7 +72,7 @@ import {
   type AuthFilesStatusFilterMode,
   type AuthFilesSortMode,
 } from '@/features/authFiles/uiState';
-import { useAuthStore, useNotificationStore, useQuotaStore, useThemeStore } from '@/stores';
+import { useAuthStore, useNotificationStore, useThemeStore } from '@/stores';
 import styles from './AuthFilesPage.module.scss';
 
 const easePower3Out = (progress: number) => 1 - (1 - progress) ** 4;
@@ -111,6 +119,7 @@ export function AuthFilesPage() {
   const [sortMode, setSortMode] = useState<AuthFilesSortMode>('default');
   const [healthFilter, setHealthFilter] = useState<AuthFileHealthFilter>('all');
   const [lowQuotaOnly, setLowQuotaOnly] = useState(false);
+  const [lowQuotaLoading, setLowQuotaLoading] = useState(false);
   const [batchActionBarVisible, setBatchActionBarVisible] = useState(false);
   const [uiStateHydrated, setUiStateHydrated] = useState(false);
   const floatingBatchActionsRef = useRef<HTMLDivElement>(null);
@@ -190,11 +199,12 @@ export function AuthFilesPage() {
   });
 
   const disableControls = connectionStatus !== 'connected';
-  const antigravityQuota = useQuotaStore((state) => state.antigravityQuota);
-  const claudeQuota = useQuotaStore((state) => state.claudeQuota);
-  const codexQuota = useQuotaStore((state) => state.codexQuota);
-  const kimiQuota = useQuotaStore((state) => state.kimiQuota);
-  const xaiQuota = useQuotaStore((state) => state.xaiQuota);
+  const { quota: antigravityQuota, loadQuota: loadAntigravityQuota } =
+    useQuotaLoader(ANTIGRAVITY_CONFIG);
+  const { quota: claudeQuota, loadQuota: loadClaudeQuota } = useQuotaLoader(CLAUDE_CONFIG);
+  const { quota: codexQuota, loadQuota: loadCodexQuota } = useQuotaLoader(CODEX_CONFIG);
+  const { quota: kimiQuota, loadQuota: loadKimiQuota } = useQuotaLoader(KIMI_CONFIG);
+  const { quota: xaiQuota, loadQuota: loadXaiQuota } = useQuotaLoader(XAI_CONFIG);
   const quotaDiagnostics = useMemo(
     () =>
       buildAuthFileQuotaDiagnostics({
@@ -215,6 +225,15 @@ export function AuthFilesPage() {
       ),
     [quotaDiagnostics]
   );
+  const lowQuotaError = useMemo(() => {
+    for (const file of files) {
+      const diagnostic = quotaDiagnostics.get(file.name);
+      if (diagnostic?.status === 'error') {
+        return diagnostic.error || t('common.unknown_error');
+      }
+    }
+    return null;
+  }, [files, quotaDiagnostics, t]);
   const normalizedFilter = normalizeProviderKey(String(filter));
   const quotaFilterType: QuotaProviderType | null = QUOTA_PROVIDER_TYPES.has(
     normalizedFilter as QuotaProviderType
@@ -404,6 +423,36 @@ export function AuthFilesPage() {
     loadExcluded();
     loadModelAlias();
   }, [isCurrentLayer, loadFiles, loadExcluded, loadModelAlias]);
+
+  useEffect(() => {
+    if (!lowQuotaOnly || connectionStatus !== 'connected' || files.length === 0) return;
+
+    const missingFiles = files.filter((file) => !quotaDiagnostics.has(file.name));
+    if (missingFiles.length === 0) return;
+
+    const ignoreSectionLoading = () => undefined;
+    setLowQuotaLoading(true);
+    void Promise.allSettled([
+      loadAntigravityQuota(
+        missingFiles.filter(ANTIGRAVITY_CONFIG.filterFn),
+        ignoreSectionLoading
+      ),
+      loadClaudeQuota(missingFiles.filter(CLAUDE_CONFIG.filterFn), ignoreSectionLoading),
+      loadCodexQuota(missingFiles.filter(CODEX_CONFIG.filterFn), ignoreSectionLoading),
+      loadKimiQuota(missingFiles.filter(KIMI_CONFIG.filterFn), ignoreSectionLoading),
+      loadXaiQuota(missingFiles.filter(XAI_CONFIG.filterFn), ignoreSectionLoading),
+    ]).finally(() => setLowQuotaLoading(false));
+  }, [
+    connectionStatus,
+    files,
+    loadAntigravityQuota,
+    loadClaudeQuota,
+    loadCodexQuota,
+    loadKimiQuota,
+    loadXaiQuota,
+    lowQuotaOnly,
+    quotaDiagnostics,
+  ]);
 
   useInterval(
     () => {
@@ -873,8 +922,12 @@ export function AuthFilesPage() {
               </div>
             </div>
 
-            {loading ? (
+            {loading || (lowQuotaOnly && lowQuotaLoading) ? (
               <div className={styles.hint}>{t('common.loading')}</div>
+            ) : lowQuotaOnly && lowQuotaError ? (
+              <div className={styles.errorBox} role="alert">
+                {lowQuotaError}
+              </div>
             ) : pageItems.length === 0 ? (
               <EmptyState
                 title={t('auth_files.search_empty_title')}

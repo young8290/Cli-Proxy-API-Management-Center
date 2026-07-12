@@ -74,6 +74,48 @@ describe('auth file health filtering', () => {
     ]);
   });
 
+  test('uses the visible type for provider filtering and searches type and provider aliases', () => {
+    const files: AuthFileItem[] = [
+      { name: 'claude.json', type: 'claude', provider: 'anthropic', status: 'active' },
+    ];
+
+    expect(filterAndSortAuthFiles(files, { provider: 'claude' })).toEqual(files);
+    expect(filterAndSortAuthFiles(files, { provider: 'anthropic' })).toEqual([]);
+    expect(filterAndSortAuthFiles(files, { search: 'claude' })).toEqual(files);
+    expect(filterAndSortAuthFiles(files, { search: 'anthropic' })).toEqual(files);
+  });
+
+  test('actively loads all supported quotas before showing low-quota filter results', () => {
+    const source = readFileSync(new URL('../src/pages/AuthFilesPage.tsx', import.meta.url), 'utf8');
+
+    [
+      'useQuotaLoader(ANTIGRAVITY_CONFIG)',
+      'useQuotaLoader(CLAUDE_CONFIG)',
+      'useQuotaLoader(CODEX_CONFIG)',
+      'useQuotaLoader(KIMI_CONFIG)',
+      'useQuotaLoader(XAI_CONFIG)',
+      'loadAntigravityQuota',
+      'loadClaudeQuota',
+      'loadCodexQuota',
+      'loadKimiQuota',
+      'loadXaiQuota',
+    ].forEach((snippet) => expect(source).toContain(snippet));
+    expect(source).toContain('lowQuotaLoading');
+    expect(source).toContain('lowQuotaError');
+    expect(source).toContain("lowQuotaOnly && lowQuotaLoading");
+  });
+
+  test('exposes full diagnostic errors through accessible disclosure controls', () => {
+    const source = readFileSync(
+      new URL('../src/features/authFiles/components/AuthFileCard.tsx', import.meta.url),
+      'utf8'
+    );
+
+    expect(source).toContain('<details');
+    expect(source).toContain('<summary');
+    expect(source).not.toContain('<dd title={diagnosticError}>{diagnosticError || \'-\'}</dd>');
+  });
+
   test('sorts by the required health priority and preserves original order inside a status', () => {
     const files: AuthFileItem[] = [
       { name: 'healthy.json', status: 'active' },

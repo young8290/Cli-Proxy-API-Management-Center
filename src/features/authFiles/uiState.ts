@@ -51,9 +51,15 @@ const AUTH_FILE_HEALTH_RANK: Record<AccountHealthKind, number> = {
 };
 
 const normalizeProvider = (file: AuthFileItem): string =>
-  String(file.provider ?? file.type ?? 'unknown')
+  String(file.type ?? file.provider ?? 'unknown')
     .trim()
     .toLowerCase();
+
+const searchableProviders = (file: AuthFileItem): string[] =>
+  [file.type, file.provider]
+    .filter((value): value is string => typeof value === 'string')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
 
 const wildcardPattern = (value: string): RegExp | null => {
   if (!value.includes('*')) return null;
@@ -82,7 +88,7 @@ export const filterAndSortAuthFiles = (
       if (health !== 'all' && fileHealth !== health) return false;
       if (options.lowQuotaOnly && !options.lowQuotaNames?.has(file.name)) return false;
       if (!search) return true;
-      return [file.name, fileProvider].some((value) =>
+      return [file.name, ...searchableProviders(file)].some((value) =>
         searchPattern ? searchPattern.test(value) : value.toLowerCase().includes(searchLower)
       );
     })
