@@ -16,9 +16,10 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 100vh;
   height: 100vh;
-  overflow: hidden;
+  overflow: visible;
   background: linear-gradient(180deg, var(--bg-secondary), var(--bg-quinary, var(--bg-secondary)));
   color: var(--text-primary);
 

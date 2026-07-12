@@ -6,6 +6,16 @@ import { parseTimestamp } from './timestamp';
  */
 
 /**
+ * Masks a secret for presentation without retaining its sensitive middle.
+ */
+export function maskSecret(value: string): string {
+  const secret = String(value || '').trim();
+  if (!secret) return '';
+  if (secret.length <= 8) return '•'.repeat(8);
+  return `${secret.slice(0, 4)}${'•'.repeat(8)}${secret.slice(-4)}`;
+}
+
+/**
  * 隐藏 API Key 中间部分，仅保留前后两位
  */
 export function maskApiKey(key: string): string {

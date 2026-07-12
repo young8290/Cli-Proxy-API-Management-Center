@@ -1,4 +1,5 @@
 import type { ModelInfo } from '@/utils/models';
+import { maskSecret } from '@/utils/format';
 
 export interface ApiEndpoints {
   serviceOrigin: string;
@@ -11,17 +12,14 @@ export const API_ACCESS_ROUTE = {
   legacyPath: '/api-keys',
 } as const;
 
-export const maskApiKey = (value: string): string => {
-  if (value.length <= 8) return '•'.repeat(Math.max(value.length, 8));
-  return `${value.slice(0, 4)}${'•'.repeat(8)}${value.slice(-4)}`;
-};
+export const maskApiKey = maskSecret;
 
 export type CopyFeedback = {
   messageKey: 'api_access.copy_success' | 'api_access.copy_failed';
   tone: 'success' | 'error';
 };
 
-export const getCopyFeedback = (copied: boolean): CopyFeedback =>
+export const createCopyFeedback = (copied: boolean): CopyFeedback =>
   copied
     ? { messageKey: 'api_access.copy_success', tone: 'success' }
     : { messageKey: 'api_access.copy_failed', tone: 'error' };

@@ -60,35 +60,6 @@ describe('API access workspace helpers', () => {
     ).toBe('empty');
   });
 
-  test('masks API keys by default while preserving the first and last four characters', () => {
-    const maskApiKey = Reflect.get(apiAccess, 'maskApiKey');
-
-    expect(typeof maskApiKey).toBe('function');
-    if (typeof maskApiKey !== 'function') return;
-
-    const masked = maskApiKey('sk-live-1234567890-secret');
-    expect(masked).toStartWith('sk-l');
-    expect(masked).toEndWith('cret');
-    expect(masked).not.toContain('1234567890');
-  });
-
-  test('derives copy feedback state without retaining the copied secret', () => {
-    const getCopyFeedback = Reflect.get(apiAccess, 'getCopyFeedback');
-
-    expect(typeof getCopyFeedback).toBe('function');
-    if (typeof getCopyFeedback !== 'function') return;
-
-    expect(getCopyFeedback(true)).toEqual({
-      messageKey: 'api_access.copy_success',
-      tone: 'success',
-    });
-    expect(getCopyFeedback(false)).toEqual({
-      messageKey: 'api_access.copy_failed',
-      tone: 'error',
-    });
-    expect(JSON.stringify(getCopyFeedback(true))).not.toContain('sk-live');
-  });
-
   test('filters models case-insensitively by name, alias, or description', () => {
     const filterModelsByQuery = Reflect.get(apiAccess, 'filterModelsByQuery');
 

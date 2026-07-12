@@ -19,7 +19,7 @@ import {
   buildPythonExample,
   deriveApiEndpoints,
   filterModelsByQuery,
-  getCopyFeedback,
+  createCopyFeedback,
   getModelsPanelState,
   maskApiKey,
 } from './apiAccess';
@@ -119,7 +119,7 @@ export function ApiAccessPage() {
 
   const handleCopy = async (value: string, label: string) => {
     const copied = await copyToClipboard(value);
-    const feedback = getCopyFeedback(copied);
+    const feedback = createCopyFeedback(copied);
     showNotification(t(feedback.messageKey, { label }), feedback.tone);
   };
 

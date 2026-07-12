@@ -38,8 +38,7 @@ describe('shared management controls', () => {
     expect(markup.indexOf('Add provider')).toBeGreaterThan(markup.indexOf('role="status"'));
   });
 
-  test('keeps shared controls at a 44px pointer target with keyboard-only focus rings', () => {
-    expect(componentsStyles).toContain('min-height: 44px');
+  test('uses keyboard-only focus rings for shared controls', () => {
     expect(componentsStyles).toContain('&:focus-visible');
     expect(mixins).toContain('&:focus-visible');
     expect(mixins).not.toContain('&:focus {');

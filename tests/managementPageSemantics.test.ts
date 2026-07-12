@@ -33,6 +33,31 @@ describe('management page feedback semantics', () => {
     expect(source).toContain("aria-label={t('config_management.search_button'");
   });
 
+  test('associates visible-label strategies with Config and Provider search fields', async () => {
+    const [config, configStyles, provider, providerStyles] = await Promise.all(
+      [
+        '../src/pages/ConfigPage.tsx',
+        '../src/pages/ConfigPage.module.scss',
+        '../src/features/providers/components/ProviderResourcePanel.tsx',
+        '../src/features/providers/components/ProviderResourcePanel.module.scss',
+      ].map(readSource)
+    );
+
+    expect(config).toContain('htmlFor="config-source-search"');
+    expect(config).toContain('id="config-source-search"');
+    expect(provider).toContain('htmlFor="provider-resource-search"');
+    expect(provider).toContain('id="provider-resource-search"');
+    expect(configStyles).toContain('.visuallyHidden');
+    expect(providerStyles).toContain('.visuallyHidden');
+  });
+
+  test('announces Config load and parse failures assertively', async () => {
+    const source = await readSource('../src/pages/ConfigPage.tsx');
+
+    expect(source.match(/role="alert"/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(source.match(/aria-live="assertive"/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+  });
+
   test('announces OAuth, logs, and provider loading or status changes', async () => {
     const [oauth, logs, providers, providerPanel] = await Promise.all(
       [

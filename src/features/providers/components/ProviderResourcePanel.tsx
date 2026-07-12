@@ -139,10 +139,14 @@ export function ProviderResourcePanel({
             ) : null}
           </div>
           <div className={styles.searchWrap}>
+            <label className={styles.visuallyHidden} htmlFor="provider-resource-search">
+              {t('providersPage.table.filterPlaceholder')}
+            </label>
             <span className={styles.searchIcon} aria-hidden="true">
               <IconSearch size={16} />
             </span>
             <input
+              id="provider-resource-search"
               type="search"
               className={styles.searchInput}
               value={filter}

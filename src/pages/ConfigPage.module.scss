@@ -46,7 +46,7 @@
 
 .tabItem {
   @include button-reset;
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 12px;
   border-radius: 6px;
   border: 1px solid transparent;
@@ -125,8 +125,21 @@
   }
 }
 
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 .searchInput {
-  min-height: 38px !important;
+  min-height: 44px !important;
   border-radius: 6px !important;
   padding-right: 128px !important;
   background: var(--bg-secondary) !important;
@@ -157,8 +170,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   border-radius: 6px;
   border: 1px solid var(--text-primary);
   background: var(--text-primary);
@@ -185,9 +198,9 @@
   flex-shrink: 0;
 
   button {
-    min-width: 38px;
-    width: 38px;
-    height: 38px;
+    min-width: 44px;
+    width: 44px;
+    height: 44px;
     padding: 0 !important;
     border-radius: 6px;
   }
@@ -341,8 +354,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: 6px;
   color: var(--text-primary);
   cursor: pointer;

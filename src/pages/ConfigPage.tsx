@@ -579,9 +579,13 @@ export function ConfigPage() {
 
       <div className={styles.workspaceShell}>
         <div className={styles.content}>
-          {error && <div className="error-box">{error}</div>}
+          {error && (
+            <div className="error-box" role="alert" aria-live="assertive">
+              {error}
+            </div>
+          )}
           {!error && visualParseError && (
-            <div className="error-box">
+            <div className="error-box" role="alert" aria-live="assertive">
               {t('config_management.visual_mode_unavailable_detail', { message: visualParseError })}
             </div>
           )}
@@ -598,7 +602,13 @@ export function ConfigPage() {
             <div className={styles.sourceWorkspace}>
               <div className={styles.sourceToolbar}>
                 <div className={styles.searchInputWrapper}>
+                  <label className={styles.visuallyHidden} htmlFor="config-source-search">
+                    {t('config_management.search_placeholder', {
+                      defaultValue: '搜索配置内容...',
+                    })}
+                  </label>
                   <Input
+                    id="config-source-search"
                     value={searchQuery}
                     onChange={(e) => handleSearchChange(e.target.value)}
                     onKeyDown={handleSearchKeyDown}
