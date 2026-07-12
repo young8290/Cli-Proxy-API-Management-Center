@@ -68,6 +68,50 @@ describe('observability workflow gaps', () => {
     expect(summary.accounts.reduce((total, account) => total + account.success, 0)).toBe(5);
   });
 
+  test('accumulates the same model across providers and accounts', () => {
+    const summary = summarizeApiKeyUsage({
+      codex: {
+        'https://one.example|one': { model: 'gpt-5', success: 2, failed: 1 },
+      },
+      compatible: {
+        'https://two.example|two': { model: 'gpt-5', success: 4, failed: 3 },
+      },
+    });
+
+    expect(summary.models).toEqual([{ name: 'gpt-5', success: 6, failed: 4 }]);
+  });
+
+  test('sorts recent failures by bucket time across midnight before selecting the latest', () => {
+    const summary = summarizeApiKeyUsage(
+      {
+        codex: {
+          'https://one.example|one': {
+            failed: 3,
+            recent_requests: [
+              { time: '23:40-23:50', success: 0, failed: 1 },
+              { time: '00:00-00:10', success: 0, failed: 1 },
+              { time: 'unknown', success: 0, failed: 1 },
+            ],
+          },
+        },
+        claude: {
+          'https://two.example|two': {
+            failed: 1,
+            recent_requests: [{ time: '23:50-00:00', success: 0, failed: 1 }],
+          },
+        },
+      },
+      new Date('2026-07-13T00:12:00+08:00')
+    );
+
+    expect(summary.failures.map((failure) => failure.time)).toEqual([
+      '00:00-00:10',
+      '23:50-00:00',
+      '23:40-23:50',
+      'unknown',
+    ]);
+  });
+
   test('filters quota records by provider and presented level', () => {
     const records: QuotaFilterRecord[] = [
       { name: 'a', provider: 'claude', level: 'critical' },

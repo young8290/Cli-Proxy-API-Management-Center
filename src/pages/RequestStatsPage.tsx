@@ -105,8 +105,7 @@ export function RequestStatsPage() {
             <h2>{t('request_stats.recent_failures')}</h2>
             {summary.failures.length ? (
               summary.failures
-                .slice(-10)
-                .reverse()
+                .slice(0, 10)
                 .map((failure, index) => (
                   <p key={`${failure.provider}-${failure.time}-${index}`}>
                     {failure.provider} · {failure.account} ·{' '}

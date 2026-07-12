@@ -35,6 +35,7 @@ export type ApiKeyUsageResponse = Record<
     {
       success?: unknown;
       failed?: unknown;
+      model?: unknown;
       recent_requests?: unknown;
       recentRequests?: unknown;
     }
@@ -78,7 +79,25 @@ const sortedDistributions = (
     return volumeDifference || left.name.localeCompare(right.name);
   });
 
-export function summarizeApiKeyUsage(input: ApiKeyUsageResponse): ApiKeyUsageSummary {
+const recentBucketTimestamp = (time: string | undefined, reference: Date): number | null => {
+  if (!time) return null;
+  const parsed = Date.parse(time);
+  if (Number.isFinite(parsed)) return parsed;
+
+  const range = time.match(/^\d{2}:\d{2}-(\d{2}):(\d{2})$/);
+  if (!range) return null;
+  const candidate = new Date(reference);
+  candidate.setHours(Number(range[1]), Number(range[2]), 0, 0);
+  if (candidate.getTime() > reference.getTime() + 15 * 60 * 1000) {
+    candidate.setDate(candidate.getDate() - 1);
+  }
+  return candidate.getTime();
+};
+
+export function summarizeApiKeyUsage(
+  input: ApiKeyUsageResponse,
+  reference: Date = new Date()
+): ApiKeyUsageSummary {
   let success = 0;
   let failed = 0;
   const providers = new Map<string, { success: number; failed: number }>();
@@ -107,7 +126,12 @@ export function summarizeApiKeyUsage(input: ApiKeyUsageResponse): ApiKeyUsageSum
 
       const rawRecord = raw as Record<string, unknown>;
       const model = typeof rawRecord.model === 'string' ? rawRecord.model.trim() : '';
-      if (model) models.set(model, { success: entry.success, failed: entry.failed });
+      if (model) {
+        const modelCounts = models.get(model) ?? { success: 0, failed: 0 };
+        modelCounts.success += entry.success;
+        modelCounts.failed += entry.failed;
+        models.set(model, modelCounts);
+      }
 
       entry.recentRequests
         .filter((bucket) => bucket.failed > 0)
@@ -129,7 +153,19 @@ export function summarizeApiKeyUsage(input: ApiKeyUsageResponse): ApiKeyUsageSum
         return volumeDifference || left.id.localeCompare(right.id);
       }),
     models: sortedDistributions(models),
-    failures,
+    failures: failures
+      .map((failure, index) => ({
+        failure,
+        index,
+        timestamp: recentBucketTimestamp(failure.time, reference),
+      }))
+      .sort((left, right) => {
+        if (left.timestamp === null && right.timestamp === null) return left.index - right.index;
+        if (left.timestamp === null) return 1;
+        if (right.timestamp === null) return -1;
+        return right.timestamp - left.timestamp || left.index - right.index;
+      })
+      .map(({ failure }) => failure),
   };
 }
 
