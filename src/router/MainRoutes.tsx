@@ -16,7 +16,9 @@ import { LogsPage } from '@/pages/LogsPage';
 import { SystemPage } from '@/pages/SystemPage';
 import { useAuthStore } from '@/stores';
 
-const createMainRoutes = (supportsPlugin: boolean) => [
+// Export the exact route table consumed below so Bun tests can verify component wiring.
+// eslint-disable-next-line react-refresh/only-export-components
+export const createMainRoutes = (supportsPlugin: boolean) => [
   { path: '/', element: <DashboardPage /> },
   { path: '/dashboard', element: <DashboardPage /> },
   { path: API_ACCESS_ROUTE.path, element: <ApiAccessPage /> },

@@ -1,12 +1,23 @@
 import { describe, expect, test } from 'bun:test';
+import { Navigate } from 'react-router-dom';
+import { ApiAccessPage } from '../src/features/apiAccess/ApiAccessPage';
 import * as apiAccess from '../src/features/apiAccess/apiAccess';
+import * as mainRoutesModule from '../src/router/MainRoutes';
 
 describe('API access route metadata', () => {
-  test('defines the canonical workspace route and legacy API keys redirect', () => {
-    expect(Reflect.get(apiAccess, 'API_ACCESS_ROUTE')).toEqual({
-      path: '/api-access',
-      legacyPath: '/api-keys',
-    });
+  test('wires the API access page and legacy redirect in the route config consumed by MainRoutes', () => {
+    const createMainRoutes = Reflect.get(mainRoutesModule, 'createMainRoutes');
+
+    expect(typeof createMainRoutes).toBe('function');
+    if (typeof createMainRoutes !== 'function') return;
+
+    const routes = createMainRoutes(false);
+    const apiAccessRoute = routes.find((route: { path: string }) => route.path === '/api-access');
+    const legacyRoute = routes.find((route: { path: string }) => route.path === '/api-keys');
+
+    expect(apiAccessRoute?.element.type).toBe(ApiAccessPage);
+    expect(legacyRoute?.element.type).toBe(Navigate);
+    expect(legacyRoute?.element.props).toMatchObject({ to: '/api-access', replace: true });
   });
 });
 
