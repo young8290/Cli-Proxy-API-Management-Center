@@ -219,6 +219,9 @@ export function AuthFilesPage() {
   useEffect(() => {
     quotaBatchLoaderRef.current = async (batchFiles) => {
       const ignoreSectionLoading = () => undefined;
+      batchFiles.forEach((file) =>
+        loadedQuotaSignaturesRef.current.set(file.name, buildAuthFileQuotaInputSignature(file))
+      );
       await Promise.allSettled([
         loadAntigravityQuota(batchFiles.filter(ANTIGRAVITY_CONFIG.filterFn), ignoreSectionLoading),
         loadClaudeQuota(batchFiles.filter(CLAUDE_CONFIG.filterFn), ignoreSectionLoading),
@@ -226,9 +229,6 @@ export function AuthFilesPage() {
         loadKimiQuota(batchFiles.filter(KIMI_CONFIG.filterFn), ignoreSectionLoading),
         loadXaiQuota(batchFiles.filter(XAI_CONFIG.filterFn), ignoreSectionLoading),
       ]);
-      batchFiles.forEach((file) =>
-        loadedQuotaSignaturesRef.current.set(file.name, buildAuthFileQuotaInputSignature(file))
-      );
     };
     if (quotaBatchControllerRef.current == null) {
       quotaBatchControllerRef.current = createQuotaLoadBatchController(
@@ -465,13 +465,18 @@ export function AuthFilesPage() {
   useEffect(() => {
     if (!lowQuotaOnly || connectionStatus !== 'connected' || files.length === 0) return;
 
-    const missingFiles = selectAuthFilesNeedingQuotaLoad(files, loadedQuotaSignaturesRef.current);
+    const missingFiles = selectAuthFilesNeedingQuotaLoad(
+      files,
+      loadedQuotaSignaturesRef.current,
+      quotaDiagnostics
+    );
     if (missingFiles.length === 0) return;
     void quotaBatchControllerRef.current?.request(missingFiles);
   }, [
     connectionStatus,
     files,
     lowQuotaOnly,
+    quotaDiagnostics,
   ]);
 
   useInterval(

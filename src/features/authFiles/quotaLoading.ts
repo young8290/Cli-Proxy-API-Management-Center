@@ -15,13 +15,15 @@ export const buildAuthFileQuotaInputSignature = (file: AuthFileItem): string =>
 
 export const selectAuthFilesNeedingQuotaLoad = (
   files: readonly AuthFileItem[],
-  loadedSignatures: ReadonlyMap<string, string>
+  loadedSignatures: ReadonlyMap<string, string>,
+  quotaCache: Pick<ReadonlyMap<string, unknown> | ReadonlySet<string>, 'has'>
 ): AuthFileItem[] =>
   files.filter(
     (file) =>
       !isDisabledAuthFile(file) &&
       QUOTA_PROVIDERS.has(resolveAuthProvider(file)) &&
-      loadedSignatures.get(file.name) !== buildAuthFileQuotaInputSignature(file)
+      (!quotaCache.has(file.name) ||
+        loadedSignatures.get(file.name) !== buildAuthFileQuotaInputSignature(file))
   );
 
 export const createQuotaLoadBatchController = (

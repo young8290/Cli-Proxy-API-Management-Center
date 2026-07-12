@@ -53,12 +53,36 @@ describe('auth file quota loading', () => {
       ['account.json', quotaLoading.buildAuthFileQuotaInputSignature(original)],
     ]);
 
-    expect(quotaLoading.selectAuthFilesNeedingQuotaLoad([original], loaded)).toEqual([]);
+    const cachedNames = new Set(['account.json']);
+
+    expect(quotaLoading.selectAuthFilesNeedingQuotaLoad([original], loaded, cachedNames)).toEqual(
+      []
+    );
     expect(
-      quotaLoading.selectAuthFilesNeedingQuotaLoad([{ ...original, modified: 2 }], loaded)
+      quotaLoading.selectAuthFilesNeedingQuotaLoad(
+        [{ ...original, modified: 2 }],
+        loaded,
+        cachedNames
+      )
     ).toEqual([{ ...original, modified: 2 }]);
     expect(
-      quotaLoading.selectAuthFilesNeedingQuotaLoad([{ ...original, authIndex: 8 }], loaded)
+      quotaLoading.selectAuthFilesNeedingQuotaLoad(
+        [{ ...original, authIndex: 8 }],
+        loaded,
+        cachedNames
+      )
     ).toEqual([{ ...original, authIndex: 8 }]);
+  });
+
+  test('reloads the same credential after its quota cache is cleared', () => {
+    const file: AuthFileItem = { name: 'account.json', type: 'claude', authIndex: 7 };
+    const loaded = new Map([
+      ['account.json', quotaLoading.buildAuthFileQuotaInputSignature(file)],
+    ]);
+
+    expect(
+      quotaLoading.selectAuthFilesNeedingQuotaLoad([file], loaded, new Set(['account.json']))
+    ).toEqual([]);
+    expect(quotaLoading.selectAuthFilesNeedingQuotaLoad([file], loaded, new Set())).toEqual([file]);
   });
 });
