@@ -42,6 +42,7 @@ export type ApiKeyUsageResponse = Record<
 >;
 
 export type ApiKeyUsageDistribution = {
+  id?: string;
   name: string;
   success: number;
   failed: number;
@@ -81,7 +82,10 @@ export function summarizeApiKeyUsage(input: ApiKeyUsageResponse): ApiKeyUsageSum
   let success = 0;
   let failed = 0;
   const providers = new Map<string, { success: number; failed: number }>();
-  const accounts = new Map<string, { success: number; failed: number }>();
+  const accounts = new Map<
+    string,
+    { name: string; success: number; failed: number }
+  >();
   const models = new Map<string, { success: number; failed: number }>();
   const failures: ApiKeyUsageSummary['failures'] = [];
 
@@ -95,7 +99,11 @@ export function summarizeApiKeyUsage(input: ApiKeyUsageResponse): ApiKeyUsageSum
       providerCounts.success += entry.success;
       providerCounts.failed += entry.failed;
       providers.set(provider, providerCounts);
-      accounts.set(account, { success: entry.success, failed: entry.failed });
+      const accountIdentity = `${provider}\u0000${compositeKey}`;
+      const accountCounts = accounts.get(accountIdentity) ?? { name: account, success: 0, failed: 0 };
+      accountCounts.success += entry.success;
+      accountCounts.failed += entry.failed;
+      accounts.set(accountIdentity, accountCounts);
 
       const rawRecord = raw as Record<string, unknown>;
       const model = typeof rawRecord.model === 'string' ? rawRecord.model.trim() : '';
@@ -114,7 +122,12 @@ export function summarizeApiKeyUsage(input: ApiKeyUsageResponse): ApiKeyUsageSum
     success,
     failed,
     providers: sortedDistributions(providers),
-    accounts: sortedDistributions(accounts),
+    accounts: [...accounts]
+      .map(([id, value]) => ({ id, ...value }))
+      .sort((left, right) => {
+        const volumeDifference = right.success + right.failed - (left.success + left.failed);
+        return volumeDifference || left.id.localeCompare(right.id);
+      }),
     models: sortedDistributions(models),
     failures,
   };

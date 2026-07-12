@@ -93,7 +93,7 @@ export function RequestStatsPage() {
             <h2>{t('request_stats.by_account')}</h2>
             {summary.accounts.length ? (
               summary.accounts.map((value) => (
-                <p key={value.name}>
+                <p key={value.id ?? value.name}>
                   {value.name}: {value.success + value.failed}
                 </p>
               ))

@@ -5,6 +5,13 @@ export interface QuotaVisibility {
   visibleFiles: AuthFileItem[];
 }
 
+export function resolveQuotaRefreshTargets<T extends { name: string }>(
+  providerFiles: T[],
+  _visibleNames?: ReadonlySet<string>
+): T[] {
+  return providerFiles;
+}
+
 export function resolveQuotaVisibility(
   files: AuthFileItem[],
   providerFilter: (file: AuthFileItem) => boolean,

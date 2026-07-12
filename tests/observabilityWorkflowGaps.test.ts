@@ -9,6 +9,7 @@ import {
   quotaLevelFromState,
   type QuotaFilterRecord,
 } from '../src/features/quota/quotaFilters';
+import { resolveQuotaRefreshTargets } from '../src/components/quota/quotaVisibility';
 
 describe('observability workflow gaps', () => {
   test('finds the latest valid recent request timestamp', () => {
@@ -52,6 +53,21 @@ describe('observability workflow gaps', () => {
     expect(summary.failures[0]).toMatchObject({ provider: 'codex', count: 2 });
   });
 
+  test('keeps colliding masked account labels as separate provider identities', () => {
+    const summary = summarizeApiKeyUsage({
+      codex: {
+        'https://relay.example/v1|codex-secret-same': { success: 2, failed: 0 },
+      },
+      claude: {
+        'https://relay.example/v1|claude-secret-same': { success: 3, failed: 1 },
+      },
+    });
+
+    expect(summary.accounts).toHaveLength(2);
+    expect(new Set(summary.accounts.map((account) => account.id)).size).toBe(2);
+    expect(summary.accounts.reduce((total, account) => total + account.success, 0)).toBe(5);
+  });
+
   test('filters quota records by provider and presented level', () => {
     const records: QuotaFilterRecord[] = [
       { name: 'a', provider: 'claude', level: 'critical' },
@@ -81,6 +97,20 @@ describe('observability workflow gaps', () => {
       })
     ).toBe('sufficient');
     expect(quotaLevelFromState('codex', { status: 'idle' })).toBe('unknown');
+  });
+
+  test('refreshes every provider credential even when a level filter hides unloaded cards', () => {
+    const providerFiles = [{ name: 'loaded-low' }, { name: 'not-loaded-yet' }];
+    const visibleNames = new Set(['loaded-low']);
+
+    expect(resolveQuotaRefreshTargets(providerFiles, visibleNames)).toEqual(providerFiles);
+    expect(quotaLevelFromState('codex', { status: 'idle' })).toBe('unknown');
+    expect(
+      quotaLevelFromState('codex', {
+        status: 'success',
+        windows: [{ usedPercent: 85 }],
+      })
+    ).toBe('low');
   });
 
   test('wires a standalone request statistics route and navigation item', () => {

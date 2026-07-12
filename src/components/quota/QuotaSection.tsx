@@ -23,7 +23,7 @@ import { useQuotaLoader } from './useQuotaLoader';
 import type { QuotaConfig } from './quotaConfigs';
 import { useGridColumns } from './useGridColumns';
 import { IconRefreshCw } from '@/components/ui/icons';
-import { resolveQuotaVisibility } from './quotaVisibility';
+import { resolveQuotaRefreshTargets, resolveQuotaVisibility } from './quotaVisibility';
 import styles from '@/pages/QuotaPage.module.scss';
 
 type QuotaUpdater<T> = T | ((prev: T) => T);
@@ -183,10 +183,10 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
     if (!wasLoading) return;
 
     pendingQuotaRefreshRef.current = false;
-    const targets = effectiveViewMode === 'all' ? visibleFiles : pageItems;
+    const targets = resolveQuotaRefreshTargets(providerFiles, visibleNames);
     if (targets.length === 0) return;
     loadQuota(targets, setLoading);
-  }, [loading, effectiveViewMode, visibleFiles, pageItems, loadQuota, setLoading]);
+  }, [loading, providerFiles, visibleNames, loadQuota, setLoading]);
 
   useEffect(() => {
     if (loading) return;
