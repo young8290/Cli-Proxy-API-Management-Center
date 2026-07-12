@@ -26,6 +26,92 @@
   margin: 0;
 }
 
+.quotaOverview {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+  padding: $spacing-md;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-lg;
+  background: var(--bg-primary);
+}
+
+.quotaSearch {
+  display: flex;
+  align-items: flex-end;
+  gap: $spacing-md;
+
+  :global(.form-group) {
+    flex: 1 1 320px;
+    max-width: 560px;
+    margin: 0;
+  }
+
+  @include mobile {
+    align-items: stretch;
+    flex-direction: column;
+    gap: $spacing-xs;
+  }
+}
+
+.searchIcon {
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.searchResultCount {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.quotaLegend,
+.quotaExplanations {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-sm $spacing-md;
+}
+
+.legendTitle {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.legendItem,
+.quotaExplanations span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.legendSufficient {
+  color: var(--success-color);
+}
+
+.legendLow {
+  color: var(--warning-text);
+}
+
+.legendCritical {
+  color: var(--danger-color);
+}
+
+.legendUnknown {
+  color: var(--text-secondary);
+}
+
+.quotaExplanations {
+  padding-top: $spacing-sm;
+  border-top: 1px dashed var(--border-color);
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
 .headerActions {
   display: flex;
   gap: $spacing-sm;

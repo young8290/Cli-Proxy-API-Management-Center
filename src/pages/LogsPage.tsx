@@ -6,17 +6,21 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import { Select } from '@/components/ui/Select';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import { lockScroll, unlockScroll } from '@/components/ui/scrollLock';
 import {
+  IconAlertTriangle,
   IconChevronDown,
   IconChevronUp,
   IconCode,
   IconDownload,
   IconEye,
   IconEyeOff,
+  IconKey,
   IconMaximize2,
   IconMinimize2,
+  IconNetwork,
   IconRefreshCw,
   IconSearch,
   IconSlidersHorizontal,
@@ -51,6 +55,15 @@ const INITIAL_DISPLAY_LINES = 100;
 const MAX_BUFFER_LINES = 10000;
 const LONG_PRESS_MS = 650;
 const LONG_PRESS_MOVE_THRESHOLD = 10;
+
+type LogLevelFilter = 'all' | 'failure' | 'warn' | 'info' | 'debug';
+type LogTimeFilter = 'all' | '15m' | '1h' | '24h';
+
+const LOG_TIME_WINDOW_MS: Record<Exclude<LogTimeFilter, 'all'>, number> = {
+  '15m': 15 * 60 * 1000,
+  '1h': 60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+};
 
 type LogPosition = Pick<LogsQuery, 'after' | 'cursor'>;
 
@@ -160,6 +173,12 @@ export function LogsPage() {
   const [autoRefresh, setAutoRefresh] = useLocalStorage('logsPage.autoRefresh', false);
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
+  const [levelFilter, setLevelFilter] = useLocalStorage<LogLevelFilter>(
+    'logsPage.levelFilter',
+    'all'
+  );
+  const [timeFilter, setTimeFilter] = useLocalStorage<LogTimeFilter>('logsPage.timeFilter', 'all');
+  const [timeFilterCutoff, setTimeFilterCutoff] = useState<number | null>(null);
   const [hideManagementLogs, setHideManagementLogs] = useLocalStorage(
     'logsPage.hideManagementLogs',
     true
@@ -179,6 +198,9 @@ export function LogsPage() {
   const [requestLogId, setRequestLogId] = useState<string | null>(null);
   const [requestLogDownloading, setRequestLogDownloading] = useState(false);
   const [fullscreenLogs, setFullscreenLogs] = useState(false);
+  const [recoveringConnection, setRecoveringConnection] = useState(false);
+  const checkAuth = useAuthStore((state) => state.checkAuth);
+  const logout = useAuthStore((state) => state.logout);
 
   const requestLogHomeIpByIdRef = useRef<Record<string, string>>({});
   const errorLogViewRequestRef = useRef(0);
@@ -220,8 +242,8 @@ export function LogsPage() {
   const autoRefreshDisabled = disableControls || showFileLoggingRequired;
   const clearDisabled = disableControls || showFileLoggingRequired || isHomeRuntime;
 
-  async function loadLogs(incremental = false) {
-    if (connectionStatus !== 'connected') {
+  async function loadLogs(incremental = false, forceConnection = false) {
+    if (!forceConnection && connectionStatus !== 'connected') {
       setLoading(false);
       return;
     }
@@ -328,6 +350,21 @@ export function LogsPage() {
   }
 
   useHeaderRefresh(() => loadLogs(false));
+
+  const retryConnection = async () => {
+    setRecoveringConnection(true);
+    try {
+      const connected = await checkAuth();
+      if (connected) {
+        await loadLogs(false, true);
+        showNotification(t('logs.recovery_success'), 'success');
+      } else {
+        showNotification(t('logs.recovery_failed'), 'error');
+      }
+    } finally {
+      setRecoveringConnection(false);
+    }
+  };
 
   const clearLogs = async () => {
     if (isHomeRuntime) {
@@ -527,13 +564,57 @@ export function LogsPage() {
     return working.map((line) => parseLogLine(line));
   }, [baseLines, hideManagementLogs, trimmedSearchQuery]);
 
+  useEffect(() => {
+    setTimeFilterCutoff(timeFilter === 'all' ? null : Date.now() - LOG_TIME_WINDOW_MS[timeFilter]);
+  }, [logState.buffer, timeFilter]);
+
   const filters = useLogFilters({ parsedLines: parsedSearchLines });
   const structuredFiltersPanelId = 'logs-structured-filters';
   const structuredFilterCount =
-    filters.methodFilters.length + filters.statusFilters.length + filters.pathFilters.length;
+    filters.methodFilters.length +
+    filters.statusFilters.length +
+    filters.pathFilters.length +
+    (levelFilter === 'all' ? 0 : 1) +
+    (timeFilter === 'all' ? 0 : 1);
+
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    setLevelFilter('all');
+    setTimeFilter('all');
+    setTimeFilterCutoff(null);
+    filters.clearStructuredFilters();
+  };
+
+  const applyRecentFailuresPreset = () => {
+    setSearchQuery('');
+    setLevelFilter('failure');
+    setTimeFilter('1h');
+    setTimeFilterCutoff(Date.now() - LOG_TIME_WINDOW_MS['1h']);
+    filters.clearStructuredFilters();
+    setStructuredFiltersExpanded(true);
+  };
 
   const { filteredParsedLines, filteredLines, removedCount } = useMemo(() => {
     const filteredParsed = parsedSearchLines.filter((line) => {
+      if (levelFilter === 'failure') {
+        const failedLevel = line.level === 'error' || line.level === 'fatal';
+        const failedStatus = typeof line.statusCode === 'number' && line.statusCode >= 400;
+        if (!failedLevel && !failedStatus) return false;
+      } else if (levelFilter === 'warn' && line.level !== 'warn') {
+        return false;
+      } else if (levelFilter === 'info' && line.level !== 'info') {
+        return false;
+      } else if (levelFilter === 'debug' && line.level !== 'debug' && line.level !== 'trace') {
+        return false;
+      }
+
+      if (timeFilter !== 'all' && timeFilterCutoff !== null) {
+        const timestamp = line.timestamp ? Date.parse(line.timestamp) : Number.NaN;
+        if (!Number.isFinite(timestamp) || timestamp < timeFilterCutoff) {
+          return false;
+        }
+      }
+
       if (
         filters.methodFilterSet.size > 0 &&
         (!line.method || !filters.methodFilterSet.has(line.method))
@@ -566,7 +647,10 @@ export function LogsPage() {
     filters.methodFilterSet,
     filters.pathFilterSet,
     filters.statusFilterSet,
+    levelFilter,
     parsedSearchLines,
+    timeFilter,
+    timeFilterCutoff,
   ]);
 
   const parsedVisibleLines = useMemo(
@@ -582,7 +666,8 @@ export function LogsPage() {
     loading,
     isSearching,
     filteredLineCount: filteredLines.length,
-    hasStructuredFilters: filters.hasStructuredFilters,
+    hasStructuredFilters:
+      filters.hasStructuredFilters || levelFilter !== 'all' || timeFilter !== 'all',
     showRawLogs,
   });
 
@@ -738,36 +823,119 @@ export function LogsPage() {
                 )}
               </div>
             )}
-            {error && <div className="error-box">{error}</div>}
+            {(connectionStatus !== 'connected' || error) && (
+              <div className={styles.recoveryPanel} role="alert">
+                <div className={styles.recoveryCopy}>
+                  <IconNetwork size={18} />
+                  <div>
+                    <strong>{t('logs.recovery_title')}</strong>
+                    <span>{error || t('logs.recovery_description')}</span>
+                  </div>
+                </div>
+                <div className={styles.recoveryActions}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => void retryConnection()}
+                    loading={recoveringConnection}
+                    disabled={recoveringConnection}
+                  >
+                    <span className={styles.buttonContent}>
+                      <IconRefreshCw size={16} />
+                      {t('logs.recovery_retry')}
+                    </span>
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={logout}>
+                    <span className={styles.buttonContent}>
+                      <IconKey size={16} />
+                      {t('logs.recovery_credentials')}
+                    </span>
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <div className={styles.filters}>
               {!fullscreenLogs && (
                 <>
-                  <div className={styles.searchWrapper}>
-                    <Input
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder={t('logs.search_placeholder')}
-                      className={styles.searchInput}
-                      rightElement={
-                        searchQuery ? (
-                          <button
-                            type="button"
-                            className={styles.searchClear}
-                            onClick={() => setSearchQuery('')}
-                            title="Clear"
-                            aria-label="Clear"
-                          >
-                            <IconX size={16} />
-                          </button>
-                        ) : (
-                          <IconSearch size={16} className={styles.searchIcon} />
-                        )
-                      }
-                    />
+                  <div className={styles.primaryFilters}>
+                    <div className={styles.searchWrapper}>
+                      <Input
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        label={t('logs.filter_keyword')}
+                        placeholder={t('logs.search_placeholder')}
+                        className={styles.searchInput}
+                        rightElement={
+                          searchQuery ? (
+                            <button
+                              type="button"
+                              className={styles.searchClear}
+                              onClick={() => setSearchQuery('')}
+                              title={t('logs.clear_keyword')}
+                              aria-label={t('logs.clear_keyword')}
+                            >
+                              <IconX size={16} />
+                            </button>
+                          ) : (
+                            <IconSearch size={16} className={styles.searchIcon} />
+                          )
+                        }
+                      />
+                    </div>
+
+                    <label className={styles.selectFilter}>
+                      <span>{t('logs.filter_level')}</span>
+                      <Select
+                        value={levelFilter}
+                        onChange={(value) => setLevelFilter(value as LogLevelFilter)}
+                        ariaLabel={t('logs.filter_level')}
+                        options={[
+                          { value: 'all', label: t('logs.filter_level_all') },
+                          { value: 'failure', label: t('logs.filter_level_failure') },
+                          { value: 'warn', label: t('logs.filter_level_warn') },
+                          { value: 'info', label: t('logs.filter_level_info') },
+                          { value: 'debug', label: t('logs.filter_level_debug') },
+                        ]}
+                      />
+                    </label>
+
+                    <label className={styles.selectFilter}>
+                      <span>{t('logs.filter_time')}</span>
+                      <Select
+                        value={timeFilter}
+                        onChange={(value) => {
+                          const next = value as LogTimeFilter;
+                          setTimeFilter(next);
+                          setTimeFilterCutoff(
+                            next === 'all' ? null : Date.now() - LOG_TIME_WINDOW_MS[next]
+                          );
+                        }}
+                        ariaLabel={t('logs.filter_time')}
+                        options={[
+                          { value: 'all', label: t('logs.filter_time_all') },
+                          { value: '15m', label: t('logs.filter_time_15m') },
+                          { value: '1h', label: t('logs.filter_time_1h') },
+                          { value: '24h', label: t('logs.filter_time_24h') },
+                        ]}
+                      />
+                    </label>
                   </div>
 
                   <div className={styles.filterPanelHeader}>
+                    <Button
+                      type="button"
+                      variant={
+                        levelFilter === 'failure' && timeFilter === '1h' ? 'primary' : 'secondary'
+                      }
+                      size="sm"
+                      onClick={applyRecentFailuresPreset}
+                    >
+                      <span className={styles.buttonContent}>
+                        <IconAlertTriangle size={16} />
+                        {t('logs.recent_failures')}
+                      </span>
+                    </Button>
                     <Button
                       type="button"
                       variant="secondary"
@@ -875,8 +1043,8 @@ export function LogsPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={filters.clearStructuredFilters}
-                    disabled={!filters.hasStructuredFilters}
+                    onClick={clearAllFilters}
+                    disabled={structuredFilterCount === 0 && !searchQuery}
                   >
                     {t('logs.clear_filters')}
                   </Button>
