@@ -55,28 +55,27 @@ After the Homebrew service restart:
 
 ## Cloudflare cache status
 
-The desired Cache Rule is:
+The following active Cache Rule was deployed through the authenticated Cloudflare dashboard:
 
 - Name: `Bypass CPA management panel cache`
 - Expression: `(http.host eq "api.youngspace.top" and http.request.uri.path eq "/management.html")`
 - Action: bypass cache
 
-Then purge this exact URL:
+The following exact URL was purged after the rule was deployed:
 
 ```text
 https://api.youngspace.top/management.html
 ```
 
-This rule and purge were not applied during this release. The key in
-`grok-register/config.json` authenticates the mail Worker, not the Cloudflare platform API.
-The available Wrangler OAuth session has Zone read access but no Cache Rules or Cache Purge
-write permission; the official purge endpoint returned HTTP 401 authentication error.
+Dashboard verification showed the rule active after the existing catch-all cache rule, so its
+`Bypass cache` action applies specifically to `api.youngspace.top/management.html`. The custom
+purge dialog completed and closed successfully. A subsequent bare-URL GET returned HTTP 200,
+`cf-cache-status: DYNAMIC`, and the `youngspace-v1.0.0` marker. The public dashboard and API
+access page were then opened through the bare URL and authenticated successfully.
 
-Consequently, the bare public URL still returned the previous Cloudflare HIT at acceptance
-time (`cache-control: max-age=14400`). A cache-busting request reached the new origin, returned
-`cf-cache-status: MISS`, and contained the `youngspace-v1.0.0` version marker. The bare URL will
-not be considered fully accepted until an authorized cache purge is completed and its response
-contains that same marker.
+The key in `grok-register/config.json` authenticates the mail Worker, not the Cloudflare platform
+API. The Wrangler OAuth session also lacks Cache Rules and Cache Purge write permissions; the
+dashboard session was therefore used for these two authorized changes.
 
 ## Rollback
 
@@ -98,5 +97,5 @@ The expected pre-switch panel hash is
 
 To return from rollback to this custom release, restore the custom repository setting,
 move the cached panel aside, restart the service, request the local panel, and verify the
-release hash again. Do not delete either pre-switch backup until the public cache rule and
-bare-URL acceptance are complete.
+release hash again. Retain both pre-switch backups until this release has completed its normal
+observation period.
