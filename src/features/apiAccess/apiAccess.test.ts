@@ -35,6 +35,23 @@ describe('deriveApiEndpoints', () => {
       modelsUrl: 'http://relay.internal:8317/v1/models',
     });
   });
+
+  test('rejects an empty address with a clear error', () => {
+    expect(() => deriveApiEndpoints('   ')).toThrow('API address is required');
+  });
+
+  test('rejects an invalid address with a clear error', () => {
+    expect(() => deriveApiEndpoints('not a valid host')).toThrow('Invalid API address');
+  });
+
+  test('rejects explicit non-HTTP protocols', () => {
+    expect(() => deriveApiEndpoints('ftp://relay.example.com/path')).toThrow(
+      'API address must use HTTP or HTTPS'
+    );
+    expect(() => deriveApiEndpoints('mailto:admin@relay.example.com')).toThrow(
+      'API address must use HTTP or HTTPS'
+    );
+  });
 });
 
 describe('SDK examples', () => {
@@ -48,6 +65,13 @@ describe('SDK examples', () => {
     expect(example).toContain('Authorization: Bearer <API_KEY>');
     expect(example).toContain(`"model": "${modelId}"`);
     expect(example).not.toContain('sk-');
+  });
+
+  test('shell-quotes single quotes in a malicious curl model ID', () => {
+    const example = buildCurlExample(openAiBaseUrl, `safe'; exit 42; echo 'unsafe`);
+
+    expect(example).toContain(`"model": "safe'"'"'; exit 42; echo '"'"'unsafe"`);
+    expect(example).not.toContain(`"model": "safe'; exit 42; echo 'unsafe"`);
   });
 
   test('builds a Python OpenAI SDK example with a placeholder key', () => {

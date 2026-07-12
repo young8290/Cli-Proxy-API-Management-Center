@@ -5,10 +5,30 @@ export interface ApiEndpoints {
 }
 
 const withoutTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
+const explicitScheme = /^([a-z][a-z\d+.-]*):(?=\/\/|[^\d])/i;
+
+const shellSingleQuote = (value: string): string => `'${value.replace(/'/g, `'"'"'`)}'`;
 
 export const deriveApiEndpoints = (input: string): ApiEndpoints => {
   const address = input.trim();
-  const url = new URL(/^https?:\/\//i.test(address) ? address : `http://${address}`);
+  if (!address) throw new Error('API address is required');
+
+  const scheme = address.match(explicitScheme)?.[1]?.toLowerCase();
+  if (scheme && scheme !== 'http' && scheme !== 'https') {
+    throw new Error('API address must use HTTP or HTTPS');
+  }
+
+  let url: URL;
+  try {
+    url = new URL(scheme ? address : `http://${address}`);
+  } catch {
+    throw new Error('Invalid API address');
+  }
+
+  if ((url.protocol !== 'http:' && url.protocol !== 'https:') || !url.hostname) {
+    throw new Error('API address must use HTTP or HTTPS');
+  }
+
   const serviceOrigin = withoutTrailingSlash(url.origin);
   const openAiBaseUrl = `${serviceOrigin}/v1`;
 
@@ -21,14 +41,15 @@ export const deriveApiEndpoints = (input: string): ApiEndpoints => {
 
 export const buildCurlExample = (openAiBaseUrl: string, modelId: string): string => {
   const baseUrl = withoutTrailingSlash(openAiBaseUrl);
+  const body = `{
+    "model": ${JSON.stringify(modelId)},
+    "messages": [{"role": "user", "content": "Hello"}]
+  }`;
 
   return `curl ${baseUrl}/chat/completions \\
   -H "Authorization: Bearer <API_KEY>" \\
   -H "Content-Type: application/json" \\
-  -d '{
-    "model": ${JSON.stringify(modelId)},
-    "messages": [{"role": "user", "content": "Hello"}]
-  }'`;
+  -d ${shellSingleQuote(body)}`;
 };
 
 export const buildPythonExample = (openAiBaseUrl: string, modelId: string): string => {
