@@ -10,6 +10,7 @@ import type {
   KimiQuotaState,
   XaiQuotaState,
 } from '@/types/quota';
+import { resolveAuthProvider } from '@/utils/quota';
 
 export const AUTH_FILES_SORT_MODES = ['default', 'az', 'priority'] as const;
 export const AUTH_FILES_STATUS_FILTER_MODES = ['all', 'enabled', 'disabled', 'problem'] as const;
@@ -50,11 +51,6 @@ const AUTH_FILE_HEALTH_RANK: Record<AccountHealthKind, number> = {
   unknown: 5,
 };
 
-const normalizeProvider = (file: AuthFileItem): string =>
-  String(file.type ?? file.provider ?? 'unknown')
-    .trim()
-    .toLowerCase();
-
 const searchableProviders = (file: AuthFileItem): string[] =>
   [file.type, file.provider]
     .filter((value): value is string => typeof value === 'string')
@@ -83,7 +79,7 @@ export const filterAndSortAuthFiles = (
   return files
     .map((file, originalIndex) => ({ file, originalIndex, health: deriveAccountHealth(file).kind }))
     .filter(({ file, health: fileHealth }) => {
-      const fileProvider = normalizeProvider(file);
+      const fileProvider = resolveAuthProvider(file) || 'unknown';
       if (provider !== 'all' && fileProvider !== provider) return false;
       if (health !== 'all' && fileHealth !== health) return false;
       if (options.lowQuotaOnly && !options.lowQuotaNames?.has(file.name)) return false;

@@ -42,6 +42,15 @@ import styles from '@/pages/AuthFilesPage.module.scss';
 
 const HEALTHY_STATUS_MESSAGES = new Set(['ok', 'healthy', 'ready', 'success', 'available']);
 
+export function AuthFileDiagnosticError({ message }: { message: string }) {
+  return (
+    <details>
+      <summary>{message}</summary>
+      <div>{message}</div>
+    </details>
+  );
+}
+
 export type AuthFileCardProps = {
   file: AuthFileItem;
   compact: boolean;
@@ -293,10 +302,7 @@ export function AuthFileCard(props: AuthFileCardProps) {
                 <dt>{t('auth_files.diagnostic_error')}</dt>
                 <dd>
                   {diagnosticError ? (
-                    <details>
-                      <summary>{diagnosticError}</summary>
-                      <div>{diagnosticError}</div>
-                    </details>
+                    <AuthFileDiagnosticError message={diagnosticError} />
                   ) : (
                     '-'
                   )}

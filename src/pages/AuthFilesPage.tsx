@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { animate } from 'motion/mini';
 import type { AnimationPlaybackControlsWithThen } from 'motion-dom';
+import type { AuthFileItem } from '@/types/authFile';
 import { useInterval } from '@/hooks/useInterval';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { useActionBarHeightVar } from '@/hooks/useActionBarHeightVar';
@@ -59,6 +60,11 @@ import { useAuthFilesModels } from '@/features/authFiles/hooks/useAuthFilesModel
 import { useAuthFilesOauth } from '@/features/authFiles/hooks/useAuthFilesOauth';
 import { useAuthFilesPrefixProxyEditor } from '@/features/authFiles/hooks/useAuthFilesPrefixProxyEditor';
 import { useAuthFilesStatusBarCache } from '@/features/authFiles/hooks/useAuthFilesStatusBarCache';
+import {
+  buildAuthFileQuotaInputSignature,
+  createQuotaLoadBatchController,
+  selectAuthFilesNeedingQuotaLoad,
+} from '@/features/authFiles/quotaLoading';
 import {
   buildAuthFileQuotaDiagnostics,
   filterAndSortAuthFiles,
@@ -126,6 +132,11 @@ export function AuthFilesPage() {
   const batchActionAnimationRef = useRef<AnimationPlaybackControlsWithThen | null>(null);
   const previousSelectionCountRef = useRef(0);
   const selectionCountRef = useRef(0);
+  const loadedQuotaSignaturesRef = useRef(new Map<string, string>());
+  const quotaBatchLoaderRef = useRef<(files: AuthFileItem[]) => Promise<void>>(async () => {});
+  const quotaBatchControllerRef = useRef<ReturnType<typeof createQuotaLoadBatchController> | null>(
+    null
+  );
 
   const {
     files,
@@ -205,6 +216,33 @@ export function AuthFilesPage() {
   const { quota: codexQuota, loadQuota: loadCodexQuota } = useQuotaLoader(CODEX_CONFIG);
   const { quota: kimiQuota, loadQuota: loadKimiQuota } = useQuotaLoader(KIMI_CONFIG);
   const { quota: xaiQuota, loadQuota: loadXaiQuota } = useQuotaLoader(XAI_CONFIG);
+  useEffect(() => {
+    quotaBatchLoaderRef.current = async (batchFiles) => {
+      const ignoreSectionLoading = () => undefined;
+      await Promise.allSettled([
+        loadAntigravityQuota(batchFiles.filter(ANTIGRAVITY_CONFIG.filterFn), ignoreSectionLoading),
+        loadClaudeQuota(batchFiles.filter(CLAUDE_CONFIG.filterFn), ignoreSectionLoading),
+        loadCodexQuota(batchFiles.filter(CODEX_CONFIG.filterFn), ignoreSectionLoading),
+        loadKimiQuota(batchFiles.filter(KIMI_CONFIG.filterFn), ignoreSectionLoading),
+        loadXaiQuota(batchFiles.filter(XAI_CONFIG.filterFn), ignoreSectionLoading),
+      ]);
+      batchFiles.forEach((file) =>
+        loadedQuotaSignaturesRef.current.set(file.name, buildAuthFileQuotaInputSignature(file))
+      );
+    };
+    if (quotaBatchControllerRef.current == null) {
+      quotaBatchControllerRef.current = createQuotaLoadBatchController(
+        (batchFiles) => quotaBatchLoaderRef.current(batchFiles),
+        setLowQuotaLoading
+      );
+    }
+  }, [
+    loadAntigravityQuota,
+    loadClaudeQuota,
+    loadCodexQuota,
+    loadKimiQuota,
+    loadXaiQuota,
+  ]);
   const quotaDiagnostics = useMemo(
     () =>
       buildAuthFileQuotaDiagnostics({
@@ -427,31 +465,13 @@ export function AuthFilesPage() {
   useEffect(() => {
     if (!lowQuotaOnly || connectionStatus !== 'connected' || files.length === 0) return;
 
-    const missingFiles = files.filter((file) => !quotaDiagnostics.has(file.name));
+    const missingFiles = selectAuthFilesNeedingQuotaLoad(files, loadedQuotaSignaturesRef.current);
     if (missingFiles.length === 0) return;
-
-    const ignoreSectionLoading = () => undefined;
-    setLowQuotaLoading(true);
-    void Promise.allSettled([
-      loadAntigravityQuota(
-        missingFiles.filter(ANTIGRAVITY_CONFIG.filterFn),
-        ignoreSectionLoading
-      ),
-      loadClaudeQuota(missingFiles.filter(CLAUDE_CONFIG.filterFn), ignoreSectionLoading),
-      loadCodexQuota(missingFiles.filter(CODEX_CONFIG.filterFn), ignoreSectionLoading),
-      loadKimiQuota(missingFiles.filter(KIMI_CONFIG.filterFn), ignoreSectionLoading),
-      loadXaiQuota(missingFiles.filter(XAI_CONFIG.filterFn), ignoreSectionLoading),
-    ]).finally(() => setLowQuotaLoading(false));
+    void quotaBatchControllerRef.current?.request(missingFiles);
   }, [
     connectionStatus,
     files,
-    loadAntigravityQuota,
-    loadClaudeQuota,
-    loadCodexQuota,
-    loadKimiQuota,
-    loadXaiQuota,
     lowQuotaOnly,
-    quotaDiagnostics,
   ]);
 
   useInterval(

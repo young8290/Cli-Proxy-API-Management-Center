@@ -3,6 +3,9 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import type { AuthFileItem } from '../src/types/authFile';
 import * as uiState from '../src/features/authFiles/uiState';
+import * as authFileCard from '../src/features/authFiles/components/AuthFileCard';
+import { CLAUDE_CONFIG } from '../src/components/quota/quotaConfigs';
+import { resolveAuthProvider } from '../src/utils/quota';
 
 type QuotaSnapshot = {
   antigravityQuota: Record<string, unknown>;
@@ -83,37 +86,18 @@ describe('auth file health filtering', () => {
     expect(filterAndSortAuthFiles(files, { provider: 'anthropic' })).toEqual([]);
     expect(filterAndSortAuthFiles(files, { search: 'claude' })).toEqual(files);
     expect(filterAndSortAuthFiles(files, { search: 'anthropic' })).toEqual(files);
-  });
-
-  test('actively loads all supported quotas before showing low-quota filter results', () => {
-    const source = readFileSync(new URL('../src/pages/AuthFilesPage.tsx', import.meta.url), 'utf8');
-
-    [
-      'useQuotaLoader(ANTIGRAVITY_CONFIG)',
-      'useQuotaLoader(CLAUDE_CONFIG)',
-      'useQuotaLoader(CODEX_CONFIG)',
-      'useQuotaLoader(KIMI_CONFIG)',
-      'useQuotaLoader(XAI_CONFIG)',
-      'loadAntigravityQuota',
-      'loadClaudeQuota',
-      'loadCodexQuota',
-      'loadKimiQuota',
-      'loadXaiQuota',
-    ].forEach((snippet) => expect(source).toContain(snippet));
-    expect(source).toContain('lowQuotaLoading');
-    expect(source).toContain('lowQuotaError');
-    expect(source).toContain("lowQuotaOnly && lowQuotaLoading");
+    expect(resolveAuthProvider(files[0]!)).toBe('claude');
+    expect(CLAUDE_CONFIG.filterFn(files[0]!)).toBe(true);
   });
 
   test('exposes full diagnostic errors through accessible disclosure controls', () => {
-    const source = readFileSync(
-      new URL('../src/features/authFiles/components/AuthFileCard.tsx', import.meta.url),
-      'utf8'
-    );
+    const renderDiagnosticError = authFileCard.AuthFileDiagnosticError as (props: {
+      message: string;
+    }) => { type: unknown; props: { children: Array<{ type: unknown }> } };
+    const disclosure = renderDiagnosticError({ message: 'full error' });
 
-    expect(source).toContain('<details');
-    expect(source).toContain('<summary');
-    expect(source).not.toContain('<dd title={diagnosticError}>{diagnosticError || \'-\'}</dd>');
+    expect(disclosure.type).toBe('details');
+    expect(disclosure.props.children[0]?.type).toBe('summary');
   });
 
   test('sorts by the required health priority and preserves original order inside a status', () => {

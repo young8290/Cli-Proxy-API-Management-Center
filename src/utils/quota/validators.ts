@@ -5,7 +5,7 @@
 import type { AuthFileItem } from '@/types';
 
 export function resolveAuthProvider(file: AuthFileItem): string {
-  const raw = file.provider ?? file.type ?? '';
+  const raw = file.type ?? file.provider ?? '';
   const key = String(raw).trim().toLowerCase().replace(/_/g, '-');
   if (key === 'x-ai' || key === 'grok') return 'xai';
   return key;
