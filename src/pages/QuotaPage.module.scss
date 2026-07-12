@@ -404,6 +404,12 @@
   overflow: hidden;
 }
 
+.quotaProgress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .quotaBarFill {
   height: 100%;
   background-color: var(--success-color, #22c55e);
@@ -420,6 +426,21 @@
 
 .quotaBarFillLow {
   background-color: var(--danger-color);
+}
+
+.quotaBarFillUnknown {
+  width: 0;
+  background-color: transparent;
+}
+
+.quotaUnknownDetail {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .quotaMeta {
@@ -459,8 +480,10 @@
   width: 100%;
   border: none;
   background: none;
+  color: inherit;
   cursor: pointer;
-  text-decoration: underline;
+  padding: 0;
+  text-align: left;
 
   &:hover:not(:disabled) {
     color: var(--text-primary);
@@ -471,6 +494,27 @@
     opacity: 0.6;
     text-decoration: none;
   }
+}
+
+.quotaStateMessage {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: $spacing-sm;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-sm;
+  background: color-mix(in srgb, var(--bg-secondary) 76%, transparent);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.quotaStateHeading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+  font-weight: 700;
 }
 
 .quotaCardActions {

@@ -69,4 +69,20 @@ describe('presentQuota', () => {
       detailKey: 'quota_management.detail_not_refreshed',
     });
   });
+
+  test('keeps a provider limit-reached detail unknown when no real percentage exists', () => {
+    expect(
+      presentQuota({
+        status: 'success',
+        usedPercent: null,
+        providerUnit: 'provider-limit',
+        detail: 'quota_management.detail_provider_limit_reached',
+        resetAt: 1_800_000_000_000,
+      })
+    ).toEqual({
+      level: 'unknown',
+      labelKey: 'quota_management.level_unknown',
+      detailKey: 'quota_management.detail_provider_limit_reached',
+    });
+  });
 });

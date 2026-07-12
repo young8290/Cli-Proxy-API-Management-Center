@@ -191,6 +191,7 @@ export interface CodexQuotaWindow {
   usedPercent: number | null;
   resetLabel: string;
   resetAt?: number;
+  detailKey?: string;
 }
 
 export interface CodexQuotaState {

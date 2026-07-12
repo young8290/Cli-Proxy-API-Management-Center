@@ -70,6 +70,10 @@ export function QuotaPage() {
       )
     );
   }, [files, searchQuery]);
+  const visibleNames = useMemo(
+    () => new Set(filteredFiles.map((file) => file.name)),
+    [filteredFiles]
+  );
 
   return (
     <div className={styles.container}>
@@ -100,18 +104,18 @@ export function QuotaPage() {
           <span className={styles.legendTitle}>{t('quota_management.legend_title')}</span>
           <span className={`${styles.legendItem} ${styles.legendSufficient}`}>
             <IconCheckCircle2 size={15} />
-            {t('quota_management.level_sufficient', { low: LOW_QUOTA_THRESHOLD_PERCENT })}
+            {t('quota_management.legend_sufficient', { low: LOW_QUOTA_THRESHOLD_PERCENT })}
           </span>
           <span className={`${styles.legendItem} ${styles.legendLow}`}>
             <IconAlertTriangle size={15} />
-            {t('quota_management.level_low', {
+            {t('quota_management.legend_low', {
               critical: CRITICAL_QUOTA_THRESHOLD_PERCENT,
               low: LOW_QUOTA_THRESHOLD_PERCENT,
             })}
           </span>
           <span className={`${styles.legendItem} ${styles.legendCritical}`}>
             <IconAlertTriangle size={15} />
-            {t('quota_management.level_critical', {
+            {t('quota_management.legend_critical', {
               critical: CRITICAL_QUOTA_THRESHOLD_PERCENT,
             })}
           </span>
@@ -137,31 +141,36 @@ export function QuotaPage() {
 
       <QuotaSection
         config={CLAUDE_CONFIG}
-        files={filteredFiles}
+        files={files}
+        visibleNames={visibleNames}
         loading={loading}
         disabled={disableControls}
       />
       <QuotaSection
         config={ANTIGRAVITY_CONFIG}
-        files={filteredFiles}
+        files={files}
+        visibleNames={visibleNames}
         loading={loading}
         disabled={disableControls}
       />
       <QuotaSection
         config={CODEX_CONFIG}
-        files={filteredFiles}
+        files={files}
+        visibleNames={visibleNames}
         loading={loading}
         disabled={disableControls}
       />
       <QuotaSection
         config={XAI_CONFIG}
-        files={filteredFiles}
+        files={files}
+        visibleNames={visibleNames}
         loading={loading}
         disabled={disableControls}
       />
       <QuotaSection
         config={KIMI_CONFIG}
-        files={filteredFiles}
+        files={files}
+        visibleNames={visibleNames}
         loading={loading}
         disabled={disableControls}
       />

@@ -23,6 +23,7 @@ import { useQuotaLoader } from './useQuotaLoader';
 import type { QuotaConfig } from './quotaConfigs';
 import { useGridColumns } from './useGridColumns';
 import { IconRefreshCw } from '@/components/ui/icons';
+import { resolveQuotaVisibility } from './quotaVisibility';
 import styles from '@/pages/QuotaPage.module.scss';
 
 type QuotaUpdater<T> = T | ((prev: T) => T);
@@ -92,6 +93,7 @@ const useQuotaPagination = <T,>(items: T[], defaultPageSize = 6): QuotaPaginatio
 interface QuotaSectionProps<TState extends QuotaStatusState, TData> {
   config: QuotaConfig<TState, TData>;
   files: AuthFileItem[];
+  visibleNames?: ReadonlySet<string>;
   loading: boolean;
   disabled: boolean;
 }
@@ -99,6 +101,7 @@ interface QuotaSectionProps<TState extends QuotaStatusState, TData> {
 export function QuotaSection<TState extends QuotaStatusState, TData>({
   config,
   files,
+  visibleNames,
   loading,
   disabled,
 }: QuotaSectionProps<TState, TData>) {
@@ -116,11 +119,11 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
   const [showTooManyWarning, setShowTooManyWarning] = useState(false);
   const [resettingQuotaName, setResettingQuotaName] = useState<string | null>(null);
 
-  const filteredFiles = useMemo(
-    () => files.filter((file) => config.filterFn(file)),
-    [files, config]
+  const { providerFiles, visibleFiles } = useMemo(
+    () => resolveQuotaVisibility(files, config.filterFn, visibleNames),
+    [files, config, visibleNames]
   );
-  const showAllAllowed = filteredFiles.length <= MAX_SHOW_ALL_THRESHOLD;
+  const showAllAllowed = visibleFiles.length <= MAX_SHOW_ALL_THRESHOLD;
   const effectiveViewMode: ViewMode = viewMode === 'all' && !showAllAllowed ? 'paged' : viewMode;
 
   const {
@@ -133,7 +136,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
     goToNext,
     loading: sectionLoading,
     setLoading,
-  } = useQuotaPagination(filteredFiles);
+  } = useQuotaPagination(visibleFiles);
 
   useEffect(() => {
     if (showAllAllowed) return;
@@ -154,12 +157,12 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
   // Update page size based on view mode and columns
   useEffect(() => {
     if (effectiveViewMode === 'all') {
-      setPageSize(Math.max(1, filteredFiles.length));
+      setPageSize(Math.max(1, visibleFiles.length));
     } else {
       // Paged mode: 3 rows * columns, capped to avoid oversized pages.
       setPageSize(Math.min(columns * 3, MAX_ITEMS_PER_PAGE));
     }
-  }, [effectiveViewMode, columns, filteredFiles.length, setPageSize]);
+  }, [effectiveViewMode, columns, visibleFiles.length, setPageSize]);
 
   const { quota, loadQuota } = useQuotaLoader(config);
 
@@ -180,20 +183,20 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
     if (!wasLoading) return;
 
     pendingQuotaRefreshRef.current = false;
-    const targets = effectiveViewMode === 'all' ? filteredFiles : pageItems;
+    const targets = effectiveViewMode === 'all' ? visibleFiles : pageItems;
     if (targets.length === 0) return;
     loadQuota(targets, setLoading);
-  }, [loading, effectiveViewMode, filteredFiles, pageItems, loadQuota, setLoading]);
+  }, [loading, effectiveViewMode, visibleFiles, pageItems, loadQuota, setLoading]);
 
   useEffect(() => {
     if (loading) return;
-    if (filteredFiles.length === 0) {
+    if (providerFiles.length === 0) {
       setQuota({});
       return;
     }
     setQuota((prev) => {
       const nextState: Record<string, TState> = {};
-      filteredFiles.forEach((file) => {
+      providerFiles.forEach((file) => {
         const cached = prev[file.name];
         if (cached) {
           nextState[file.name] = cached;
@@ -201,7 +204,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
       });
       return nextState;
     });
-  }, [filteredFiles, loading, setQuota]);
+  }, [providerFiles, loading, setQuota]);
 
   const refreshQuotaForFile = useCallback(
     async (file: AuthFileItem) => {
@@ -286,9 +289,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
   const titleNode = (
     <div className={styles.titleWrapper}>
       <span>{t(`${config.i18nPrefix}.title`)}</span>
-      {filteredFiles.length > 0 && (
-        <span className={styles.countBadge}>{filteredFiles.length}</span>
-      )}
+      {visibleFiles.length > 0 && <span className={styles.countBadge}>{visibleFiles.length}</span>}
     </div>
   );
 
@@ -317,7 +318,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
                 effectiveViewMode === 'all' ? styles.viewModeButtonActive : ''
               }`}
               onClick={() => {
-                if (filteredFiles.length > MAX_SHOW_ALL_THRESHOLD) {
+                if (visibleFiles.length > MAX_SHOW_ALL_THRESHOLD) {
                   setShowTooManyWarning(true);
                 } else {
                   setViewMode('all');
@@ -343,7 +344,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
         </div>
       }
     >
-      {filteredFiles.length === 0 ? (
+      {visibleFiles.length === 0 ? (
         <EmptyState
           title={t(`${config.i18nPrefix}.empty_title`)}
           description={t(`${config.i18nPrefix}.empty_desc`)}
@@ -393,7 +394,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
               );
             })}
           </div>
-          {filteredFiles.length > pageSize && effectiveViewMode === 'paged' && (
+          {visibleFiles.length > pageSize && effectiveViewMode === 'paged' && (
             <div className={styles.pagination}>
               <Button variant="secondary" size="sm" onClick={goToPrev} disabled={currentPage <= 1}>
                 {t('auth_files.pagination_prev')}
@@ -402,7 +403,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
                 {t('auth_files.pagination_info', {
                   current: currentPage,
                   total: totalPages,
-                  count: filteredFiles.length,
+                  count: visibleFiles.length,
                 })}
               </div>
               <Button

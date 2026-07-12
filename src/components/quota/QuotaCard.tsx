@@ -6,8 +6,9 @@ import { useTranslation } from 'react-i18next';
 import type { ReactElement, ReactNode } from 'react';
 import type { TFunction } from 'i18next';
 import { Button } from '@/components/ui/Button';
-import { IconRefreshCw } from '@/components/ui/icons';
+import { IconInfo, IconRefreshCw } from '@/components/ui/icons';
 import type { AuthFileItem, ResolvedTheme, ThemeColors } from '@/types';
+import { presentQuota, type QuotaPresentation } from '@/features/quota/quotaPresentation';
 import { TYPE_COLORS } from '@/utils/quota';
 import styles from '@/pages/QuotaPage.module.scss';
 
@@ -21,36 +22,68 @@ export interface QuotaStatusState {
 
 export interface QuotaProgressBarProps {
   percent: number | null;
-  highThreshold: number;
-  mediumThreshold: number;
+  detailKey?: string;
+  resetAt?: string | number;
 }
 
-export function QuotaProgressBar({
-  percent,
-  highThreshold,
-  mediumThreshold,
-}: QuotaProgressBarProps) {
-  const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-  const normalized = percent === null ? null : clamp(percent, 0, 100);
+export function QuotaProgressBar({ percent, detailKey, resetAt }: QuotaProgressBarProps) {
+  const { t } = useTranslation();
+  const presentation = presentQuota({
+    status: 'success',
+    remainingPercent: percent,
+    detail: detailKey,
+    resetAt,
+  });
   const fillClass =
-    normalized === null
-      ? styles.quotaBarFillMedium
-      : normalized >= highThreshold
-        ? styles.quotaBarFillHigh
-        : normalized >= mediumThreshold
-          ? styles.quotaBarFillMedium
-          : styles.quotaBarFillLow;
-  const widthPercent = Math.round((normalized ?? 0) * 100) / 100;
+    presentation.level === 'sufficient'
+      ? styles.quotaBarFillHigh
+      : presentation.level === 'low'
+        ? styles.quotaBarFillMedium
+        : presentation.level === 'critical'
+          ? styles.quotaBarFillLow
+          : styles.quotaBarFillUnknown;
+  const widthPercent = Math.round((presentation.percent ?? 0) * 100) / 100;
+  const accessibleLabel = `${t(presentation.labelKey)}: ${t(presentation.detailKey)}`;
 
   return (
-    <div className={styles.quotaBar}>
-      <div
-        className={`${styles.quotaBarFill} ${fillClass}`}
-        style={{ width: `${widthPercent}%` }}
-      />
+    <div className={styles.quotaProgress} data-quota-level={presentation.level}>
+      <div className={styles.quotaBar} aria-label={accessibleLabel} title={accessibleLabel}>
+        <div
+          className={`${styles.quotaBarFill} ${fillClass}`}
+          style={{ width: `${widthPercent}%` }}
+        />
+      </div>
+      {presentation.level === 'unknown' && (
+        <div className={styles.quotaUnknownDetail}>
+          <IconInfo size={14} />
+          <span>{t(presentation.labelKey)}</span>
+          <span aria-hidden="true">·</span>
+          <span>{t(presentation.detailKey)}</span>
+        </div>
+      )}
     </div>
   );
 }
+
+const QuotaStateMessage = ({
+  presentation,
+  children,
+}: {
+  presentation: QuotaPresentation;
+  children?: ReactNode;
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div className={styles.quotaStateMessage} data-quota-level={presentation.level}>
+      <span className={styles.quotaStateHeading}>
+        <IconInfo size={15} />
+        {t(presentation.labelKey)}
+      </span>
+      <span>{t(presentation.detailKey)}</span>
+      {children}
+    </div>
+  );
+};
 
 export interface QuotaRenderHelpers {
   styles: typeof styles;
@@ -97,6 +130,10 @@ export function QuotaCard<TState extends QuotaStatusState>({
     quota?.error || t('common.unknown_error')
   );
   const idleMessageKey = `${i18nPrefix}.idle`;
+  const idlePresentation = presentQuota({ status: 'not-refreshed' });
+  const errorPresentation = presentQuota({
+    status: quota?.errorStatus === 404 ? 'unsupported' : 'fetch-error',
+  });
 
   const getTypeLabel = (type: string): string => {
     const key = `auth_files.filter_${type}`;
@@ -129,25 +166,33 @@ export function QuotaCard<TState extends QuotaStatusState>({
           onRefresh ? (
             <button
               type="button"
-              className={`${styles.quotaMessage} ${styles.quotaMessageAction}`}
+              className={styles.quotaMessageAction}
               onClick={onRefresh}
               disabled={!canRefresh}
             >
-              {t(idleMessageKey)}
+              <QuotaStateMessage presentation={idlePresentation}>
+                <span>{t(idleMessageKey)}</span>
+              </QuotaStateMessage>
             </button>
           ) : (
-            <div className={styles.quotaMessage}>{t(idleMessageKey)}</div>
+            <QuotaStateMessage presentation={idlePresentation}>
+              <span>{t(idleMessageKey)}</span>
+            </QuotaStateMessage>
           )
         ) : quotaStatus === 'error' ? (
-          <div className={styles.quotaError}>
-            {t(`${i18nPrefix}.load_failed`, {
-              message: quotaErrorMessage,
-            })}
-          </div>
+          <QuotaStateMessage presentation={errorPresentation}>
+            <span className={styles.quotaError}>
+              {t(`${i18nPrefix}.load_failed`, {
+                message: quotaErrorMessage,
+              })}
+            </span>
+          </QuotaStateMessage>
         ) : quota ? (
           renderQuotaItems(quota, t, { styles, QuotaProgressBar })
         ) : (
-          <div className={styles.quotaMessage}>{t(idleMessageKey)}</div>
+          <QuotaStateMessage presentation={idlePresentation}>
+            <span>{t(idleMessageKey)}</span>
+          </QuotaStateMessage>
         )}
       </div>
 

@@ -109,8 +109,6 @@ type CodexQuotaData = {
   windows: CodexQuotaWindow[];
 };
 
-const QUOTA_PROGRESS_HIGH_THRESHOLD = 70;
-const QUOTA_PROGRESS_MEDIUM_THRESHOLD = 30;
 const CODEX_RESET_CREDITS_REQUEST_TIMEOUT_MS = 8000;
 
 export interface QuotaStore {
@@ -357,15 +355,17 @@ const buildCodexQuotaWindows = (payload: CodexUsagePayload, t: TFunction): Codex
           : undefined;
     const usedPercentRaw = normalizeNumberValue(window.used_percent ?? window.usedPercent);
     const isLimitReached = Boolean(limitReached) || allowed === false;
-    const usedPercent = usedPercentRaw ?? (isLimitReached && resetLabel !== '-' ? 100 : null);
     windows.push({
       id,
       label,
       labelKey,
       labelParams,
-      usedPercent,
+      usedPercent: usedPercentRaw,
       resetLabel,
       ...(resetAt !== undefined ? { resetAt } : {}),
+      ...(usedPercentRaw === null && isLimitReached
+        ? { detailKey: 'quota_management.detail_provider_limit_reached' }
+        : {}),
     });
   };
 
@@ -885,8 +885,6 @@ const renderAntigravityItems = (
             ),
             h(QuotaProgressBar, {
               percent,
-              highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
-              mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
             })
           );
         })
@@ -1025,7 +1023,8 @@ const renderCodexItems = (
       const used = window.usedPercent;
       const clampedUsed = used === null ? null : Math.max(0, Math.min(100, used));
       const remaining = clampedUsed === null ? null : Math.max(0, Math.min(100, 100 - clampedUsed));
-      const percentLabel = remaining === null ? '--' : `${Math.round(remaining)}%`;
+      const percentLabel =
+        remaining === null ? t('quota_management.level_unknown') : `${Math.round(remaining)}%`;
       const windowLabel = window.labelKey
         ? t(window.labelKey, window.labelParams as Record<string, string | number>)
         : window.label;
@@ -1046,8 +1045,8 @@ const renderCodexItems = (
         ),
         h(QuotaProgressBar, {
           percent: remaining,
-          highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
-          mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+          detailKey: window.detailKey,
+          resetAt: window.resetAt,
         })
       );
     })
@@ -1240,7 +1239,8 @@ const renderClaudeItems = (
       const used = window.usedPercent;
       const clampedUsed = used === null ? null : Math.max(0, Math.min(100, used));
       const remaining = clampedUsed === null ? null : Math.max(0, Math.min(100, 100 - clampedUsed));
-      const percentLabel = remaining === null ? '--' : `${Math.round(remaining)}%`;
+      const percentLabel =
+        remaining === null ? t('quota_management.level_unknown') : `${Math.round(remaining)}%`;
       const windowLabel = window.labelKey ? t(window.labelKey) : window.label;
 
       return h(
@@ -1259,8 +1259,7 @@ const renderClaudeItems = (
         ),
         h(QuotaProgressBar, {
           percent: remaining,
-          highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
-          mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+          resetAt: window.resetAt,
         })
       );
     })
@@ -1409,12 +1408,8 @@ const renderKimiItems = (
     const limit = row.limit;
     const used = row.used;
     const remaining =
-      limit > 0
-        ? Math.max(0, Math.min(100, Math.round(((limit - used) / limit) * 100)))
-        : used > 0
-          ? 0
-          : null;
-    const percentLabel = remaining === null ? '--' : `${remaining}%`;
+      limit > 0 ? Math.max(0, Math.min(100, Math.round(((limit - used) / limit) * 100))) : null;
+    const percentLabel = remaining === null ? t('quota_management.level_unknown') : `${remaining}%`;
     const rowLabel = row.labelKey
       ? t(row.labelKey, (row.labelParams ?? {}) as Record<string, string | number>)
       : (row.label ?? '');
@@ -1431,13 +1426,14 @@ const renderKimiItems = (
           'div',
           { className: styleMap.quotaMeta },
           h('span', { className: styleMap.quotaPercent }, percentLabel),
+          h('span', { className: styleMap.quotaAmount }, `${used} / ${limit}`),
           resetLabel ? h('span', { className: styleMap.quotaReset }, resetLabel) : null
         )
       ),
       h(QuotaProgressBar, {
         percent: remaining,
-        highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
-        mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+        detailKey: remaining === null ? 'quota_management.detail_provider_native' : undefined,
+        resetAt: row.resetAt,
       })
     );
   });
@@ -1675,8 +1671,6 @@ const renderXaiItems = (
           ),
           h(QuotaProgressBar, {
             percent: weeklyRemaining,
-            highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
-            mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
           })
         )
       : null,
@@ -1709,8 +1703,6 @@ const renderXaiItems = (
         ),
         h(QuotaProgressBar, {
           percent: remainingPercent,
-          highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
-          mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
         })
       );
     }),
@@ -1731,8 +1723,6 @@ const renderXaiItems = (
           ),
           h(QuotaProgressBar, {
             percent: onDemandRemaining,
-            highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
-            mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
           })
         )
       : h(
@@ -1759,8 +1749,6 @@ const renderXaiItems = (
           ),
           h(QuotaProgressBar, {
             percent: remaining,
-            highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
-            mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
           })
         )
       : null
