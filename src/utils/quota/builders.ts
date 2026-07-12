@@ -147,6 +147,20 @@ function kimiResetHint(data: Record<string, unknown>): string | undefined {
   return undefined;
 }
 
+function kimiResetAt(data: Record<string, unknown>, now = Date.now()): number | undefined {
+  for (const key of ['reset_at', 'resetAt', 'reset_time', 'resetTime']) {
+    const raw = data[key];
+    if (typeof raw !== 'string' || !raw.trim()) continue;
+    const parsed = Date.parse(raw.replace(/(\.\d{6})\d+/, '$1'));
+    if (Number.isFinite(parsed) && parsed > now) return parsed;
+  }
+  for (const key of ['reset_in', 'resetIn', 'ttl']) {
+    const seconds = toInt(data[key]);
+    if (seconds !== null && seconds > 0) return now + seconds * 1000;
+  }
+  return undefined;
+}
+
 function kimiDurationToken(duration: number, rawTimeUnit: unknown): string {
   const unit = typeof rawTimeUnit === 'string' ? rawTimeUnit.trim().toUpperCase() : '';
   if (unit === 'SECONDS' || unit === 'SECOND') return `${duration}s`;
@@ -198,7 +212,7 @@ function kimiLimitLabel(
 function toKimiUsageRow(
   data: Record<string, unknown>,
   fallbackLabel: KimiRowLabel
-): (KimiRowLabel & { used: number; limit: number; resetHint?: string }) | null {
+): (KimiRowLabel & { used: number; limit: number; resetHint?: string; resetAt?: number }) | null {
   const limit = toInt(data.limit);
   let used = toInt(data.used);
   if (used === null) {
@@ -217,6 +231,7 @@ function toKimiUsageRow(
     used: used ?? 0,
     limit: limit ?? 0,
     resetHint: kimiResetHint(data),
+    resetAt: kimiResetAt(data),
   };
 }
 
@@ -237,8 +252,7 @@ export function buildKimiQuotaRows(payload: KimiUsagePayload): KimiQuotaRow[] {
   if (Array.isArray(limits)) {
     limits.forEach((item, idx) => {
       const detail = (item.detail && typeof item.detail === 'object' ? item.detail : item) as
-        | KimiUsageDetail
-        | KimiLimitItem;
+        KimiUsageDetail | KimiLimitItem;
       const window = (
         item.window && typeof item.window === 'object' ? item.window : {}
       ) as KimiLimitWindow;

@@ -139,6 +139,7 @@ export interface ClaudeQuotaWindow {
   labelKey?: string;
   usedPercent: number | null;
   resetLabel: string;
+  resetAt?: number;
 }
 
 export interface ClaudeQuotaState {
@@ -189,6 +190,7 @@ export interface CodexQuotaWindow {
   labelParams?: Record<string, string | number>;
   usedPercent: number | null;
   resetLabel: string;
+  resetAt?: number;
 }
 
 export interface CodexQuotaState {
@@ -255,6 +257,7 @@ export interface KimiQuotaRow {
   used: number;
   limit: number;
   resetHint?: string;
+  resetAt?: number;
 }
 
 export interface KimiQuotaState {
