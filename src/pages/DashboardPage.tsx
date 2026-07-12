@@ -145,9 +145,14 @@ export function DashboardPage() {
     setAuthFilesError(null);
     try {
       const response = await authFilesApi.list();
-      authRequests.commit(generation, () => setAuthFiles(response.files));
-      return response.files;
+      return (
+        authRequests.commit(generation, () => {
+          setAuthFiles(response.files);
+          return response.files;
+        }) ?? null
+      );
     } catch (error) {
+      if (!authRequests.isLatest(generation)) return null;
       authRequests.commit(generation, () => setAuthFilesError(errorMessage(error)));
       throw error;
     } finally {
@@ -194,7 +199,7 @@ export function DashboardPage() {
   const loadDashboard = useCallback(async () => {
     const generation = dashboardRequests.begin();
     const authFilesRequest = loadAuthFiles();
-    const quotaRequest = authFilesRequest.then(loadQuotas);
+    const quotaRequest = authFilesRequest.then((files) => (files ? loadQuotas(files) : undefined));
     await Promise.allSettled([
       authFilesRequest,
       quotaRequest,
@@ -208,7 +213,7 @@ export function DashboardPage() {
   const retryAccountsAndQuota = useCallback(async () => {
     try {
       const files = await loadAuthFiles();
-      await loadQuotas(files);
+      if (files) await loadQuotas(files);
     } catch {
       // Per-module error state is rendered in the dependent cards.
     }
