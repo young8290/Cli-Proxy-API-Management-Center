@@ -139,21 +139,23 @@ export function ProviderResourcePanel({
             ) : null}
           </div>
           <div className={styles.searchWrap}>
-            <label className={styles.visuallyHidden} htmlFor="provider-resource-search">
+            <label className={styles.searchLabel} htmlFor="provider-resource-search">
               {t('providersPage.table.filterPlaceholder')}
             </label>
-            <span className={styles.searchIcon} aria-hidden="true">
-              <IconSearch size={16} />
-            </span>
-            <input
-              id="provider-resource-search"
-              type="search"
-              className={styles.searchInput}
-              value={filter}
-              onChange={(event) => onFilterChange(event.target.value)}
-              placeholder={t('providersPage.table.filterPlaceholder')}
-              aria-label={t('providersPage.table.filterPlaceholder')}
-            />
+            <div className={styles.searchField}>
+              <span className={styles.searchIcon} aria-hidden="true">
+                <IconSearch size={16} />
+              </span>
+              <input
+                id="provider-resource-search"
+                type="search"
+                className={styles.searchInput}
+                value={filter}
+                onChange={(event) => onFilterChange(event.target.value)}
+                placeholder={t('providersPage.table.filterPlaceholder')}
+                aria-label={t('providersPage.table.filterPlaceholder')}
+              />
+            </div>
           </div>
         </div>
         {toolbarControls ? (

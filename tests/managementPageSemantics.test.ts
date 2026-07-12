@@ -33,7 +33,7 @@ describe('management page feedback semantics', () => {
     expect(source).toContain("aria-label={t('config_management.search_button'");
   });
 
-  test('associates visible-label strategies with Config and Provider search fields', async () => {
+  test('shows compact visible labels for Config and Provider search fields', async () => {
     const [config, configStyles, provider, providerStyles] = await Promise.all(
       [
         '../src/pages/ConfigPage.tsx',
@@ -47,8 +47,12 @@ describe('management page feedback semantics', () => {
     expect(config).toContain('id="config-source-search"');
     expect(provider).toContain('htmlFor="provider-resource-search"');
     expect(provider).toContain('id="provider-resource-search"');
-    expect(configStyles).toContain('.visuallyHidden');
-    expect(providerStyles).toContain('.visuallyHidden');
+    expect(config).toContain('className={styles.searchLabel}');
+    expect(provider).toContain('className={styles.searchLabel}');
+    expect(configStyles).toContain('.searchLabel');
+    expect(providerStyles).toContain('.searchLabel');
+    expect(configStyles).not.toContain('.visuallyHidden');
+    expect(providerStyles).not.toContain('.visuallyHidden');
   });
 
   test('announces Config load and parse failures assertively', async () => {
@@ -80,5 +84,13 @@ describe('management page feedback semantics', () => {
     expect(source).toContain('aria-label={showSidebarLabels ? undefined : item.label}');
     expect(source).toContain("aria-label={t('header.refresh_all')}");
     expect(source).toContain("aria-label={t('header.logout')}");
+  });
+
+  test('labels AuthFileCard download, settings, and delete icon buttons', async () => {
+    const source = await readSource('../src/features/authFiles/components/AuthFileCard.tsx');
+
+    expect(source).toContain("aria-label={t('auth_files.download_button')}");
+    expect(source).toContain("aria-label={t('auth_files.prefix_proxy_button')}");
+    expect(source).toContain("aria-label={t('auth_files.delete_button')}");
   });
 });

@@ -602,10 +602,8 @@ export function ConfigPage() {
             <div className={styles.sourceWorkspace}>
               <div className={styles.sourceToolbar}>
                 <div className={styles.searchInputWrapper}>
-                  <label className={styles.visuallyHidden} htmlFor="config-source-search">
-                    {t('config_management.search_placeholder', {
-                      defaultValue: '搜索配置内容...',
-                    })}
+                  <label className={styles.searchLabel} htmlFor="config-source-search">
+                    {t('config_management.search_button', { defaultValue: '搜索' })}
                   </label>
                   <Input
                     id="config-source-search"

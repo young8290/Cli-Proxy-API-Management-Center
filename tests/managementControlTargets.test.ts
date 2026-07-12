@@ -19,6 +19,19 @@ const selectorBlock = (source: string, selector: string, nested = false): string
   return '';
 };
 
+const selectorBlocks = (source: string, selector: string): string[] => {
+  const blocks: string[] = [];
+  let remaining = source;
+  while (remaining) {
+    const block = selectorBlock(remaining, selector);
+    if (!block) break;
+    blocks.push(block);
+    const start = remaining.indexOf(`${selector} {`);
+    remaining = remaining.slice(start + `${selector} {`.length + block.length + 1);
+  }
+  return blocks;
+};
+
 const expect44pxTarget = (block: string) => {
   expect(block).toMatch(/(?:min-)?height:\s*44px/);
 };
@@ -67,5 +80,34 @@ describe('retained management module pointer targets', () => {
     expect(appShell).not.toMatch(/overflow:\s*hidden/);
     expect(appShell).toContain('overflow: visible');
     expect(appShell).toContain('min-width: 0');
+  });
+
+  test('keeps plugin and store icon links at 44 by 44px', async () => {
+    const [plugins, store] = await Promise.all(
+      [
+        '../src/features/plugins/PluginsPage.module.scss',
+        '../src/features/plugins/PluginStorePage.module.scss',
+      ].map(read)
+    );
+    const pluginLinks = selectorBlocks(plugins, '.iconLink').join('\n');
+    const storeLink = selectorBlock(store, '.iconLink');
+
+    expect(pluginLinks).toContain('width: 44px');
+    expect44pxTarget(pluginLinks);
+    expect(storeLink).toContain('width: 44px');
+    expect44pxTarget(storeLink);
+  });
+
+  test('keeps AuthFileCard utility actions at 44px in default and compact layouts', async () => {
+    const styles = await read('../src/pages/AuthFilesPage.module.scss');
+    const defaultAction = selectorBlock(styles, '.iconButton:global(.btn.btn-sm)');
+    const compactCard = selectorBlock(styles, '.fileCardCompact');
+    const compactAction = selectorBlock(compactCard, '.iconButton:global(.btn.btn-sm)', true);
+
+    [defaultAction, compactAction].forEach((block) => {
+      expect(block).toContain('width: 44px');
+      expect(block).toContain('min-width: 44px');
+      expect44pxTarget(block);
+    });
   });
 });
