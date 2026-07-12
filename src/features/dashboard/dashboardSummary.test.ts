@@ -28,7 +28,11 @@ describe('buildDashboardSummary', () => {
   test('sums request totals across providers and returns a percentage success rate', () => {
     const usage: ApiKeyUsageResponse = {
       gemini: {
-        'https://one.example|key-a': { success: 8, failed: 2 },
+        'https://one.example|key-a': {
+          success: 8,
+          failed: 2,
+          recent_requests: [{ success: 3, failed: 1 }],
+        },
         'https://two.example|key-b': { success: '3', failed: '1' },
       },
       claude: {
@@ -39,6 +43,7 @@ describe('buildDashboardSummary', () => {
     expect(buildDashboardSummary([], usage).requests).toEqual({
       success: 20,
       failure: 4,
+      recent: 4,
       successRate: (20 / 24) * 100,
     });
   });
@@ -47,6 +52,7 @@ describe('buildDashboardSummary', () => {
     expect(buildDashboardSummary([], {}).requests).toEqual({
       success: 0,
       failure: 0,
+      recent: 0,
       successRate: null,
     });
   });

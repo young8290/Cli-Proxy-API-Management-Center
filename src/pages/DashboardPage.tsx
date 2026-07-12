@@ -15,6 +15,15 @@ import { useAuthStore, useConfigStore, useModelsStore } from '@/stores';
 import { apiKeyUsageApi, authFilesApi } from '@/services/api';
 import { useApiKeysForModels } from '@/hooks/useApiKeysForModels';
 import { buildDashboardSummary } from '@/features/dashboard/dashboardSummary';
+import { buildDashboardQuotaSummary } from '@/features/dashboard/dashboardQuotaSummary';
+import { useQuotaLoader } from '@/components/quota/useQuotaLoader';
+import {
+  ANTIGRAVITY_CONFIG,
+  CLAUDE_CONFIG,
+  CODEX_CONFIG,
+  KIMI_CONFIG,
+  XAI_CONFIG,
+} from '@/components/quota/quotaConfigs';
 import { formatDateValue } from '@/utils/format';
 import { getDashboardModelsStatValue } from '@/utils/dashboard';
 import type { AuthFileItem } from '@/types/authFile';
@@ -68,6 +77,12 @@ export function DashboardPage() {
   const modelsError = useModelsStore((state) => state.error);
   const fetchModelsFromStore = useModelsStore((state) => state.fetchModels);
   const resolveApiKeysForModels = useApiKeysForModels();
+  const { quota: antigravityQuota, loadQuota: loadAntigravityQuota } =
+    useQuotaLoader(ANTIGRAVITY_CONFIG);
+  const { quota: claudeQuota, loadQuota: loadClaudeQuota } = useQuotaLoader(CLAUDE_CONFIG);
+  const { quota: codexQuota, loadQuota: loadCodexQuota } = useQuotaLoader(CODEX_CONFIG);
+  const { quota: kimiQuota, loadQuota: loadKimiQuota } = useQuotaLoader(KIMI_CONFIG);
+  const { quota: xaiQuota, loadQuota: loadXaiQuota } = useQuotaLoader(XAI_CONFIG);
 
   const [authFiles, setAuthFiles] = useState<AuthFileItem[]>([]);
   const [authFilesLoading, setAuthFilesLoading] = useState(false);
@@ -77,6 +92,38 @@ export function DashboardPage() {
   const [usageError, setUsageError] = useState<string | null>(null);
   const [configLoading, setConfigLoading] = useState(false);
   const [configError, setConfigError] = useState<string | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null);
+
+  const quotaConfigs = useMemo(
+    () => [CLAUDE_CONFIG, ANTIGRAVITY_CONFIG, CODEX_CONFIG, XAI_CONFIG, KIMI_CONFIG],
+    []
+  );
+
+  const quotaFiles = useMemo(
+    () =>
+      authFiles.filter((file) => quotaConfigs.some((quotaConfig) => quotaConfig.filterFn(file))),
+    [authFiles, quotaConfigs]
+  );
+
+  const loadQuotas = useCallback(
+    async (files: AuthFileItem[]) => {
+      setQuotaLoading(true);
+      const ignoreSectionLoading = () => undefined;
+      try {
+        await Promise.allSettled([
+          loadClaudeQuota(files.filter(CLAUDE_CONFIG.filterFn), ignoreSectionLoading),
+          loadAntigravityQuota(files.filter(ANTIGRAVITY_CONFIG.filterFn), ignoreSectionLoading),
+          loadCodexQuota(files.filter(CODEX_CONFIG.filterFn), ignoreSectionLoading),
+          loadXaiQuota(files.filter(XAI_CONFIG.filterFn), ignoreSectionLoading),
+          loadKimiQuota(files.filter(KIMI_CONFIG.filterFn), ignoreSectionLoading),
+        ]);
+      } finally {
+        setQuotaLoading(false);
+      }
+    },
+    [loadAntigravityQuota, loadClaudeQuota, loadCodexQuota, loadKimiQuota, loadXaiQuota]
+  );
 
   const loadAuthFiles = useCallback(async () => {
     setAuthFilesLoading(true);
@@ -128,8 +175,26 @@ export function DashboardPage() {
   }, [apiBase, fetchModelsFromStore, resolveApiKeysForModels]);
 
   const loadDashboard = useCallback(async () => {
-    await Promise.allSettled([loadAuthFiles(), loadUsage(), loadConfig(), loadModels()]);
-  }, [loadAuthFiles, loadConfig, loadModels, loadUsage]);
+    const authFilesRequest = loadAuthFiles();
+    const quotaRequest = authFilesRequest.then(loadQuotas);
+    await Promise.allSettled([
+      authFilesRequest,
+      quotaRequest,
+      loadUsage(),
+      loadConfig(),
+      loadModels(),
+    ]);
+    setLastRefreshedAt(Date.now());
+  }, [loadAuthFiles, loadConfig, loadModels, loadQuotas, loadUsage]);
+
+  const retryAccountsAndQuota = useCallback(async () => {
+    try {
+      const files = await loadAuthFiles();
+      await loadQuotas(files);
+    } catch {
+      // Per-module error state is rendered in the dependent cards.
+    }
+  }, [loadAuthFiles, loadQuotas]);
 
   useEffect(() => {
     if (connectionStatus !== 'connected') return;
@@ -140,10 +205,18 @@ export function DashboardPage() {
   const usageSkeleton = useDelayedLoading(usageLoading && Object.keys(usage).length === 0);
   const configSkeleton = useDelayedLoading(configLoading && !config);
   const modelsSkeleton = useDelayedLoading(modelsLoading && models.length === 0);
+  const quotaSkeleton = useDelayedLoading(quotaLoading);
   const summary = useMemo(() => buildDashboardSummary(authFiles, usage), [authFiles, usage]);
-  const accountProblems =
-    summary.accounts.error + summary.accounts.unavailable + summary.accounts.retrying;
-  const endpoint = apiBase ? `${apiBase.replace(/\/+$/, '')}/v1` : '-';
+  const quotaSummary = useMemo(
+    () =>
+      buildDashboardQuotaSummary(
+        { antigravityQuota, claudeQuota, codexQuota, kimiQuota, xaiQuota },
+        quotaFiles.length
+      ),
+    [antigravityQuota, claudeQuota, codexQuota, kimiQuota, quotaFiles.length, xaiQuota]
+  );
+  const serviceUrl = apiBase ? apiBase.replace(/\/+$/, '') : '-';
+  const endpoint = serviceUrl === '-' ? '-' : `${serviceUrl}/v1`;
   const serverBuildDateDisplay = formatDateValue(serverBuildDate, i18n.language);
   const successRate =
     summary.requests.successRate === null
@@ -190,12 +263,26 @@ export function DashboardPage() {
         </div>
         <dl className={styles.serviceMeta}>
           <div>
+            <dt>{t('dashboard.service_url')}</dt>
+            <dd className={styles.mono}>{serviceUrl}</dd>
+          </div>
+          <div>
             <dt>{t('dashboard.version')}</dt>
             <dd>{serverVersion ? `v${serverVersion.replace(/^[vV]+/, '')}` : '-'}</dd>
           </div>
           <div>
             <dt>{t('dashboard.build_date')}</dt>
             <dd>{serverBuildDateDisplay || '-'}</dd>
+          </div>
+          <div>
+            <dt>{t('dashboard.last_refreshed')}</dt>
+            <dd>
+              {lastRefreshedAt
+                ? new Intl.DateTimeFormat(i18n.language, { timeStyle: 'medium' }).format(
+                    lastRefreshedAt
+                  )
+                : '-'}
+            </dd>
           </div>
         </dl>
       </section>
@@ -214,11 +301,8 @@ export function DashboardPage() {
               <Skeleton width="42%" height={34} />
               <Skeleton width="88%" height={16} />
             </div>
-          ) : authFilesError && authFiles.length === 0 ? (
-            <RetryState
-              message={authFilesError}
-              onRetry={() => void loadAuthFiles().catch(() => undefined)}
-            />
+          ) : authFilesError ? (
+            <RetryState message={authFilesError} onRetry={() => void retryAccountsAndQuota()} />
           ) : (
             <>
               <strong className={styles.metricValue}>{summary.accounts.healthy}</strong>
@@ -259,38 +343,67 @@ export function DashboardPage() {
               <div className={styles.statusBreakdown}>
                 <span>{t('dashboard.success_count', { count: summary.requests.success })}</span>
                 <span>{t('dashboard.failure_count', { count: summary.requests.failure })}</span>
+                <span>{t('dashboard.recent_requests', { count: summary.requests.recent })}</span>
               </div>
             </>
           )}
         </section>
 
-        <Link
-          to="/quota"
-          className={`${styles.metricCard} ${accountProblems > 0 ? styles.warningCard : ''}`}
+        <section
+          className={`${styles.metricCard} ${quotaSummary.low > 0 || quotaSummary.errors > 0 ? styles.warningCard : ''}`}
         >
           <div className={styles.cardHeader}>
             <IconTimer size={22} aria-hidden="true" />
             <span>{t('dashboard.quota_alerts')}</span>
+            <Link to="/quota" className={styles.cardAction}>
+              {t('dashboard.view_quota')}
+            </Link>
           </div>
-          {authFilesSkeleton ? (
+          {authFilesSkeleton || quotaSkeleton ? (
             <div role="status" className={styles.skeletonStack} aria-label={t('dashboard.loading')}>
               <Skeleton width="30%" height={34} />
               <Skeleton width="74%" height={16} />
             </div>
+          ) : authFilesError ? (
+            <RetryState message={authFilesError} onRetry={() => void retryAccountsAndQuota()} />
           ) : (
             <>
-              <strong className={styles.metricValue}>{accountProblems}</strong>
+              <strong className={styles.metricValue}>
+                {quotaSummary.expected === 0 ? '-' : quotaSummary.low}
+              </strong>
               <span className={styles.metricCaption}>
-                {accountProblems > 0
-                  ? t('dashboard.quota_attention_needed')
-                  : t('dashboard.quota_no_alerts')}
+                {quotaSummary.expected === 0
+                  ? t('dashboard.quota_unknown')
+                  : quotaSummary.low > 0
+                    ? t('dashboard.quota_low_detected')
+                    : t('dashboard.quota_no_alerts')}
               </span>
-              <span className={styles.inlineHint}>
-                {t('dashboard.unavailable_count', { count: summary.accounts.unavailable })}
-              </span>
+              <div className={styles.statusBreakdown}>
+                <span>
+                  {t('dashboard.quota_refreshing_soon', { count: quotaSummary.refreshingSoon })}
+                </span>
+                <span>{t('dashboard.quota_read_errors', { count: quotaSummary.errors })}</span>
+                <span>
+                  {t('dashboard.quota_unknown_count', {
+                    count: Math.max(
+                      0,
+                      quotaSummary.expected -
+                        quotaSummary.loaded -
+                        quotaSummary.loading -
+                        quotaSummary.errors
+                    ),
+                  })}
+                </span>
+              </div>
+              {quotaSummary.errors > 0 ? (
+                <RetryState
+                  message={t('dashboard.quota_read_failed', { count: quotaSummary.errors })}
+                  onRetry={() => void loadQuotas(quotaFiles)}
+                />
+              ) : null}
             </>
           )}
-        </Link>
+        </section>
       </div>
 
       <section className={styles.endpointCard}>
@@ -311,6 +424,10 @@ export function DashboardPage() {
           </div>
         ) : (
           <dl className={styles.endpointGrid}>
+            <div>
+              <dt>{t('dashboard.service_url')}</dt>
+              <dd className={styles.mono}>{serviceUrl}</dd>
+            </div>
             <div>
               <dt>{t('dashboard.openai_base_url')}</dt>
               <dd className={styles.mono}>{endpoint}</dd>
@@ -359,6 +476,8 @@ export function DashboardPage() {
             <Skeleton height={58} />
             <Skeleton height={58} />
           </div>
+        ) : authFilesError ? (
+          <RetryState message={authFilesError} onRetry={() => void retryAccountsAndQuota()} />
         ) : summary.recentErrors.length === 0 ? (
           <div className={styles.emptyState}>
             <IconCheckCircle2 size={22} aria-hidden="true" />
@@ -372,6 +491,15 @@ export function DashboardPage() {
                 <div>
                   <strong>{incident.name}</strong>
                   <span>{incident.message || t(`dashboard.health_${incident.kind}`)}</span>
+                  {incident.nextRetryAfter !== undefined ? (
+                    <span>
+                      {t('dashboard.next_retry', {
+                        time:
+                          formatDateValue(incident.nextRetryAfter, i18n.language) ||
+                          t('dashboard.time_unknown'),
+                      })}
+                    </span>
+                  ) : null}
                 </div>
                 <time>
                   {incident.timestamp

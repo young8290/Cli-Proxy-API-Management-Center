@@ -266,7 +266,7 @@
 
 .endpointGrid {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(120px, 1fr));
+  grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) repeat(2, minmax(120px, 1fr));
   gap: $spacing-md;
 
   > div {

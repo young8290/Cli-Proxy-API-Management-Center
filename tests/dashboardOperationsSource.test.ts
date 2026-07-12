@@ -8,6 +8,7 @@ describe('dashboard operations overview wiring', () => {
     expect(source).toContain('Promise.allSettled');
     expect(source).toContain('apiKeyUsageApi.getUsage()');
     expect(source).toContain('authFilesApi.list()');
+    expect(source).toContain('useQuotaLoader');
   });
 
   test('links operators to API access, accounts, quota, and logs', () => {
@@ -20,5 +21,13 @@ describe('dashboard operations overview wiring', () => {
     expect(source).toContain('role="status"');
     expect(source).toContain('role="alert"');
     expect(source).toContain('IconRefreshCw');
+  });
+
+  test('shows service and API addresses, refresh time, recent volume, and retry timing', () => {
+    expect(source).toContain('dashboard.service_url');
+    expect(source).toContain('dashboard.openai_base_url');
+    expect(source).toContain('dashboard.last_refreshed');
+    expect(source).toContain('dashboard.recent_requests');
+    expect(source).toContain('incident.nextRetryAfter');
   });
 });

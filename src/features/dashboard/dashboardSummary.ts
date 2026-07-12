@@ -1,7 +1,11 @@
 import { accountTimestamp, deriveAccountHealth } from '@/features/accountHealth/accountHealth';
 import type { AccountHealthKind } from '@/features/accountHealth/accountHealth';
 import type { AuthFileItem } from '@/types/authFile';
-import { normalizeRecentRequestUsageEntry, type ApiKeyUsageResponse } from '@/utils/recentRequests';
+import {
+  normalizeRecentRequestUsageEntry,
+  sumRecentRequests,
+  type ApiKeyUsageResponse,
+} from '@/utils/recentRequests';
 
 export interface DashboardAccountSummary {
   total: number;
@@ -15,6 +19,7 @@ export interface DashboardAccountSummary {
 export interface DashboardRequestSummary {
   success: number;
   failure: number;
+  recent: number;
   successRate: number | null;
 }
 
@@ -82,6 +87,7 @@ export function buildDashboardSummary(
 
   let success = 0;
   let failure = 0;
+  let recent = 0;
   Object.values(usage ?? {}).forEach((providerEntries) => {
     if (!providerEntries || typeof providerEntries !== 'object' || Array.isArray(providerEntries)) {
       return;
@@ -90,6 +96,8 @@ export function buildDashboardSummary(
       const entry = normalizeRecentRequestUsageEntry(rawEntry);
       success += entry.success;
       failure += entry.failed;
+      const recentTotals = sumRecentRequests(entry.recentRequests);
+      recent += recentTotals.success + recentTotals.failure;
     });
   });
   const totalRequests = success + failure;
@@ -99,6 +107,7 @@ export function buildDashboardSummary(
     requests: {
       success,
       failure,
+      recent,
       successRate: totalRequests > 0 ? (success / totalRequests) * 100 : null,
     },
     recentErrors,
