@@ -18,8 +18,11 @@ import {
   normalizeRecentRequestBuckets,
   normalizeUsageTotal,
   statusBarDataFromRecentRequests,
+  sumRecentRequests,
 } from '@/utils/recentRequests';
-import { formatFileSize } from '@/utils/format';
+import { formatDateValue, formatFileSize } from '@/utils/format';
+import { deriveAccountHealth } from '@/features/accountHealth/accountHealth';
+import type { AuthFileQuotaDiagnostic } from '@/features/authFiles/uiState';
 import {
   QUOTA_PROVIDER_TYPES,
   formatModified,
@@ -48,6 +51,7 @@ export type AuthFileCardProps = {
   deleting: string | null;
   statusUpdating: Record<string, boolean>;
   quotaFilterType: QuotaProviderType | null;
+  quotaDiagnostic?: AuthFileQuotaDiagnostic;
   statusBarCache: Map<string, AuthFileStatusBarData>;
   onShowModels: (file: AuthFileItem) => void;
   onDownload: (name: string) => void;
@@ -64,7 +68,7 @@ const resolveQuotaType = (file: AuthFileItem): QuotaProviderType | null => {
 };
 
 export function AuthFileCard(props: AuthFileCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const {
     file,
     compact,
@@ -74,6 +78,7 @@ export function AuthFileCard(props: AuthFileCardProps) {
     deleting,
     statusUpdating,
     quotaFilterType,
+    quotaDiagnostic,
     statusBarCache,
     onShowModels,
     onDownload,
@@ -84,6 +89,7 @@ export function AuthFileCard(props: AuthFileCardProps) {
   } = props;
 
   const recentBuckets = normalizeRecentRequestBuckets(file.recent_requests ?? file.recentRequests);
+  const recentStats = sumRecentRequests(recentBuckets);
   const fileStats = {
     success: normalizeUsageTotal(file.success),
     failure: normalizeUsageTotal(file.failed),
@@ -120,11 +126,20 @@ export function AuthFileCard(props: AuthFileCardProps) {
     (authIndexKey && statusBarCache.get(authIndexKey)) ||
     statusBarDataFromRecentRequests(recentBuckets);
   const rawStatusMessage = getAuthFileStatusMessage(file);
+  const health = deriveAccountHealth(file);
   const hasStatusWarning =
     Boolean(rawStatusMessage) && !HEALTHY_STATUS_MESSAGES.has(rawStatusMessage.toLowerCase());
 
   const priorityValue = parsePriorityValue(file.priority ?? file['priority']);
   const noteValue = typeof file.note === 'string' ? file.note.trim() : '';
+  const formatDiagnosticTime = (value: string | number | undefined) =>
+    value === undefined ? '-' : formatDateValue(value, i18n.language) || String(value);
+  const quotaValue = quotaDiagnostic
+    ? quotaDiagnostic.remainingPercent === null
+      ? t(`auth_files.quota_status_${quotaDiagnostic.status}`)
+      : `${Math.round(quotaDiagnostic.remainingPercent)}%`
+    : '-';
+  const diagnosticError = health.message || quotaDiagnostic?.error || '';
   const stateLabel = isRuntimeOnly
     ? t('auth_files.type_virtual') || '虚拟认证文件'
     : file.disabled
@@ -231,6 +246,54 @@ export function AuthFileCard(props: AuthFileCardProps) {
           )}
 
           <div className={`${styles.cardInsights} ${compact ? styles.cardInsightsCompact : ''}`}>
+            <dl
+              className={`${styles.diagnosticGrid} ${compact ? styles.diagnosticGridCompact : ''}`}
+            >
+              <div className={styles.diagnosticItem}>
+                <dt>{t('auth_files.diagnostic_account')}</dt>
+                <dd title={file.name}>{file.name}</dd>
+              </div>
+              <div className={styles.diagnosticItem}>
+                <dt>{t('auth_files.diagnostic_provider')}</dt>
+                <dd>{typeLabel}</dd>
+              </div>
+              <div className={styles.diagnosticItem}>
+                <dt>{t('auth_files.diagnostic_status')}</dt>
+                <dd>{t(`auth_files.health_filter_${health.kind}`)}</dd>
+              </div>
+              <div
+                className={`${styles.diagnosticItem} ${quotaDiagnostic?.low ? styles.diagnosticQuotaLow : ''}`}
+              >
+                <dt>{t('auth_files.diagnostic_quota')}</dt>
+                <dd>{quotaValue}</dd>
+              </div>
+              <div className={styles.diagnosticItem}>
+                <dt>{t('stats.success')}</dt>
+                <dd>{fileStats.success}</dd>
+              </div>
+              <div className={styles.diagnosticItem}>
+                <dt>{t('stats.failure')}</dt>
+                <dd>{fileStats.failure}</dd>
+              </div>
+              <div className={styles.diagnosticItem}>
+                <dt>{t('auth_files.diagnostic_recent')}</dt>
+                <dd>{recentStats.success + recentStats.failure}</dd>
+              </div>
+              <div className={styles.diagnosticItem}>
+                <dt>{t('auth_files.diagnostic_last_refresh')}</dt>
+                <dd>{formatDiagnosticTime(health.lastRefresh)}</dd>
+              </div>
+              <div className={styles.diagnosticItem}>
+                <dt>{t('auth_files.diagnostic_next_retry')}</dt>
+                <dd>{formatDiagnosticTime(health.nextRetryAfter)}</dd>
+              </div>
+              <div
+                className={`${styles.diagnosticItem} ${diagnosticError ? styles.diagnosticError : ''}`}
+              >
+                <dt>{t('auth_files.diagnostic_error')}</dt>
+                <dd title={diagnosticError}>{diagnosticError || '-'}</dd>
+              </div>
+            </dl>
             <div className={`${styles.cardStats} ${compact ? styles.cardStatsCompact : ''}`}>
               <div className={`${styles.statPill} ${styles.statSuccess}`}>
                 <span className={styles.statLabel}>{t('stats.success')}</span>

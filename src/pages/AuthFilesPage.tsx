@@ -52,16 +52,19 @@ import { useAuthFilesOauth } from '@/features/authFiles/hooks/useAuthFilesOauth'
 import { useAuthFilesPrefixProxyEditor } from '@/features/authFiles/hooks/useAuthFilesPrefixProxyEditor';
 import { useAuthFilesStatusBarCache } from '@/features/authFiles/hooks/useAuthFilesStatusBarCache';
 import {
+  buildAuthFileQuotaDiagnostics,
+  filterAndSortAuthFiles,
   isAuthFilesStatusFilterMode,
   isAuthFilesSortMode,
   readAuthFilesUiState,
   readPersistedAuthFilesCompactMode,
   writeAuthFilesUiState,
   writePersistedAuthFilesCompactMode,
+  type AuthFileHealthFilter,
   type AuthFilesStatusFilterMode,
   type AuthFilesSortMode,
 } from '@/features/authFiles/uiState';
-import { useAuthStore, useNotificationStore, useThemeStore } from '@/stores';
+import { useAuthStore, useNotificationStore, useQuotaStore, useThemeStore } from '@/stores';
 import styles from './AuthFilesPage.module.scss';
 
 const easePower3Out = (progress: number) => 1 - (1 - progress) ** 4;
@@ -70,14 +73,6 @@ const BATCH_BAR_BASE_TRANSFORM = 'translateX(-50%)';
 const BATCH_BAR_HIDDEN_TRANSFORM = 'translateX(-50%) translateY(56px)';
 const DEFAULT_REGULAR_PAGE_SIZE = 9;
 const DEFAULT_COMPACT_PAGE_SIZE = 12;
-
-const escapeWildcardSearchSegment = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-const buildWildcardSearch = (value: string): RegExp | null => {
-  if (!value.includes('*')) return null;
-  const pattern = value.split('*').map(escapeWildcardSearchSegment).join('.*');
-  return new RegExp(pattern, 'i');
-};
 
 const resolveStatusFilterMode = (
   problemOnly: boolean,
@@ -114,6 +109,8 @@ export function AuthFilesPage() {
   const [pageSizeInput, setPageSizeInput] = useState('9');
   const [viewMode, setViewMode] = useState<'diagram' | 'list'>('list');
   const [sortMode, setSortMode] = useState<AuthFilesSortMode>('default');
+  const [healthFilter, setHealthFilter] = useState<AuthFileHealthFilter>('all');
+  const [lowQuotaOnly, setLowQuotaOnly] = useState(false);
   const [batchActionBarVisible, setBatchActionBarVisible] = useState(false);
   const [uiStateHydrated, setUiStateHydrated] = useState(false);
   const floatingBatchActionsRef = useRef<HTMLDivElement>(null);
@@ -193,6 +190,31 @@ export function AuthFilesPage() {
   });
 
   const disableControls = connectionStatus !== 'connected';
+  const antigravityQuota = useQuotaStore((state) => state.antigravityQuota);
+  const claudeQuota = useQuotaStore((state) => state.claudeQuota);
+  const codexQuota = useQuotaStore((state) => state.codexQuota);
+  const kimiQuota = useQuotaStore((state) => state.kimiQuota);
+  const xaiQuota = useQuotaStore((state) => state.xaiQuota);
+  const quotaDiagnostics = useMemo(
+    () =>
+      buildAuthFileQuotaDiagnostics({
+        antigravityQuota,
+        claudeQuota,
+        codexQuota,
+        kimiQuota,
+        xaiQuota,
+      }),
+    [antigravityQuota, claudeQuota, codexQuota, kimiQuota, xaiQuota]
+  );
+  const lowQuotaNames = useMemo(
+    () =>
+      new Set(
+        Array.from(quotaDiagnostics.entries())
+          .filter(([, diagnostic]) => diagnostic.low)
+          .map(([name]) => name)
+      ),
+    [quotaDiagnostics]
+  );
   const normalizedFilter = normalizeProviderKey(String(filter));
   const quotaFilterType: QuotaProviderType | null = QUOTA_PROVIDER_TYPES.has(
     normalizedFilter as QuotaProviderType
@@ -256,6 +278,17 @@ export function AuthFilesPage() {
       if (isAuthFilesSortMode(persisted.sortMode)) {
         setSortMode(persisted.sortMode);
       }
+      if (
+        persisted.healthFilter === 'all' ||
+        ['error', 'unavailable', 'retrying', 'disabled', 'healthy', 'unknown'].includes(
+          String(persisted.healthFilter)
+        )
+      ) {
+        setHealthFilter(persisted.healthFilter as AuthFileHealthFilter);
+      }
+      if (typeof persisted.lowQuotaOnly === 'boolean') {
+        setLowQuotaOnly(persisted.lowQuotaOnly);
+      }
     }
 
     setUiStateHydrated(true);
@@ -276,12 +309,16 @@ export function AuthFilesPage() {
       regularPageSize: pageSizeByMode.regular,
       compactPageSize: pageSizeByMode.compact,
       sortMode,
+      healthFilter,
+      lowQuotaOnly,
     });
     writePersistedAuthFilesCompactMode(compactMode);
   }, [
     compactMode,
     disabledOnly,
     filter,
+    healthFilter,
+    lowQuotaOnly,
     page,
     pageSize,
     pageSizeByMode,
@@ -415,6 +452,14 @@ export function AuthFilesPage() {
     [t]
   );
 
+  const healthFilterOptions = useMemo(
+    () =>
+      (['all', 'error', 'unavailable', 'retrying', 'disabled', 'healthy', 'unknown'] as const).map(
+        (value) => ({ value, label: t(`auth_files.health_filter_${value}`) })
+      ),
+    [t]
+  );
+
   const typeCounts = useMemo(() => {
     const counts: Record<string, number> = { all: filesMatchingStatusFilters.length };
     filesMatchingStatusFilters.forEach((file) => {
@@ -425,38 +470,26 @@ export function AuthFilesPage() {
     return counts;
   }, [filesMatchingStatusFilters]);
 
-  const normalizedSearch = search.trim();
-  const wildcardSearch = useMemo(() => buildWildcardSearch(normalizedSearch), [normalizedSearch]);
-
   const filtered = useMemo(() => {
-    const normalizedTerm = normalizedSearch.toLowerCase();
-
-    return filesMatchingStatusFilters.filter((item) => {
-      const type = normalizeProviderKey(String(item.type ?? item.provider ?? ''));
-      const matchType = normalizedFilter === 'all' || type === normalizedFilter;
-      const matchSearch =
-        !normalizedSearch ||
-        [item.name, item.type, item.provider].some((value) => {
-          const content = (value || '').toString();
-          return wildcardSearch
-            ? wildcardSearch.test(content)
-            : content.toLowerCase().includes(normalizedTerm);
-        });
-      return matchType && matchSearch;
+    return filterAndSortAuthFiles(filesMatchingStatusFilters, {
+      provider: normalizedFilter,
+      health: healthFilter,
+      lowQuotaOnly,
+      lowQuotaNames,
+      search,
     });
-  }, [filesMatchingStatusFilters, normalizedFilter, normalizedSearch, wildcardSearch]);
+  }, [
+    filesMatchingStatusFilters,
+    healthFilter,
+    lowQuotaNames,
+    lowQuotaOnly,
+    normalizedFilter,
+    search,
+  ]);
 
   const sorted = useMemo(() => {
     const copy = [...filtered];
-    if (sortMode === 'default') {
-      copy.sort((a, b) => {
-        const providerA = normalizeProviderKey(String(a.provider ?? a.type ?? 'unknown'));
-        const providerB = normalizeProviderKey(String(b.provider ?? b.type ?? 'unknown'));
-        const providerCompare = providerA.localeCompare(providerB);
-        if (providerCompare !== 0) return providerCompare;
-        return a.name.localeCompare(b.name);
-      });
-    } else if (sortMode === 'az') {
+    if (sortMode === 'az') {
       copy.sort((a, b) => a.name.localeCompare(b.name));
     } else if (sortMode === 'priority') {
       copy.sort((a, b) => {
@@ -782,6 +815,20 @@ export function AuthFilesPage() {
                       fullWidth
                     />
                   </div>
+                  <div className={styles.filterOptionsControl}>
+                    <label>{t('auth_files.health_filter_label')}</label>
+                    <Select
+                      className={styles.sortSelect}
+                      value={healthFilter}
+                      options={healthFilterOptions}
+                      onChange={(value) => {
+                        setHealthFilter(value as AuthFileHealthFilter);
+                        setPage(1);
+                      }}
+                      ariaLabel={t('auth_files.health_filter_label')}
+                      fullWidth
+                    />
+                  </div>
                   <div className={styles.filterOptionsToggle}>
                     <ToggleSwitch
                       checked={compactMode}
@@ -790,6 +837,21 @@ export function AuthFilesPage() {
                       label={
                         <span className={styles.filterToggleLabel}>
                           {t('auth_files.compact_mode_label')}
+                        </span>
+                      }
+                    />
+                  </div>
+                  <div className={styles.filterOptionsToggle}>
+                    <ToggleSwitch
+                      checked={lowQuotaOnly}
+                      onChange={(value) => {
+                        setLowQuotaOnly(value);
+                        setPage(1);
+                      }}
+                      ariaLabel={t('auth_files.low_quota_filter_label')}
+                      label={
+                        <span className={styles.filterToggleLabel}>
+                          {t('auth_files.low_quota_filter_label')}
                         </span>
                       }
                     />
@@ -833,6 +895,7 @@ export function AuthFilesPage() {
                     deleting={deleting}
                     statusUpdating={statusUpdating}
                     quotaFilterType={quotaFilterType}
+                    quotaDiagnostic={quotaDiagnostics.get(file.name)}
                     statusBarCache={statusBarCache}
                     onShowModels={showModels}
                     onDownload={handleDownload}
