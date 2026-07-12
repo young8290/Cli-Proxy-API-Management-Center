@@ -573,6 +573,12 @@ export function MainLayout() {
       labelKey: 'nav_groups.requests_diagnostics',
       items: [
         {
+          path: '/request-stats',
+          labelKey: 'nav.request_stats',
+          metaKey: 'nav_meta.request_stats',
+          icon: sidebarIcons.dashboard,
+        },
+        {
           path: '/logs',
           labelKey: 'nav.logs',
           metaKey: 'nav_meta.logs',

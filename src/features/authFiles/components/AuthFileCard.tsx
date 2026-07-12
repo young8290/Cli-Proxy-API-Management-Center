@@ -17,6 +17,7 @@ import {
   normalizeRecentRequestAuthIndex,
   normalizeRecentRequestBuckets,
   normalizeUsageTotal,
+  latestRecentRequestTime,
   statusBarDataFromRecentRequests,
   sumRecentRequests,
 } from '@/utils/recentRequests';
@@ -99,6 +100,7 @@ export function AuthFileCard(props: AuthFileCardProps) {
 
   const recentBuckets = normalizeRecentRequestBuckets(file.recent_requests ?? file.recentRequests);
   const recentStats = sumRecentRequests(recentBuckets);
+  const latestRequestTime = latestRecentRequestTime(recentBuckets);
   const fileStats = {
     success: normalizeUsageTotal(file.success),
     failure: normalizeUsageTotal(file.failed),
@@ -286,7 +288,12 @@ export function AuthFileCard(props: AuthFileCardProps) {
               </div>
               <div className={styles.diagnosticItem}>
                 <dt>{t('auth_files.diagnostic_recent')}</dt>
-                <dd>{recentStats.success + recentStats.failure}</dd>
+                <dd>
+                  {recentStats.success + recentStats.failure} ·{' '}
+                  {latestRequestTime
+                    ? formatDiagnosticTime(latestRequestTime)
+                    : t('auth_files.no_recent_request')}
+                </dd>
               </div>
               <div className={styles.diagnosticItem}>
                 <dt>{t('auth_files.diagnostic_last_refresh')}</dt>
@@ -301,11 +308,7 @@ export function AuthFileCard(props: AuthFileCardProps) {
               >
                 <dt>{t('auth_files.diagnostic_error')}</dt>
                 <dd>
-                  {diagnosticError ? (
-                    <AuthFileDiagnosticError message={diagnosticError} />
-                  ) : (
-                    '-'
-                  )}
+                  {diagnosticError ? <AuthFileDiagnosticError message={diagnosticError} /> : '-'}
                 </dd>
               </div>
             </dl>
@@ -319,6 +322,8 @@ export function AuthFileCard(props: AuthFileCardProps) {
                 <span className={styles.statValue}>{fileStats.failure}</span>
               </div>
             </div>
+            <a href="#/request-stats">{t('auth_files.request_details')}</a>
+            <a href="#/logs">{t('auth_files.log_diagnostics')}</a>
 
             <div className={`${styles.statusPanel} ${compact ? styles.statusPanelCompact : ''}`}>
               <div className={styles.statusPanelLabel}>

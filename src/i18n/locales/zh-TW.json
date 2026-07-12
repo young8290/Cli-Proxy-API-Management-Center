@@ -96,6 +96,7 @@
     "status": "連線狀態:"
   },
   "nav": {
+    "request_stats": "請求統計",
     "dashboard": "儀表板",
     "api_access": "API 接入",
     "account_status": "帳號狀態",
@@ -117,6 +118,7 @@
     "gateway_settings": "閘道設定"
   },
   "nav_meta": {
+    "request_stats": "流量健康與失敗診斷",
     "dashboard": "運行總覽",
     "api_access": "位址、金鑰、模型與範例",
     "account_status": "驗證檔案與憑證狀態",
@@ -217,8 +219,11 @@
     "routing_strategy_fill_first": "fill-first（優先填充）"
   },
   "auth_files": {
-    "title": "驗證檔案管理",
-    "title_section": "驗證檔案",
+    "no_recent_request": "暫無最近請求",
+    "request_details": "請求詳情",
+    "log_diagnostics": "日誌診斷",
+    "title": "帳號狀態",
+    "title_section": "帳號",
     "description": "這裡集中管理 CLI Proxy 支援的所有 JSON 驗證檔案（如 Qwen、Gemini、Vertex 等），上傳後即可在執行時啟用對應的 AI 服務。",
     "upload_button": "上傳檔案",
     "delete_all_button": "刪除全部",
@@ -1179,7 +1184,26 @@
       }
     }
   },
+  "request_stats": {
+    "title": "請求統計",
+    "description": "請求總量、提供商分佈與最近失敗請求。",
+    "loading": "正在載入請求統計…",
+    "retry": "重試",
+    "total": "總請求",
+    "success_rate": "成功率",
+    "period": "統計參考起始於 {{time}}（目前前端工作階段；服務重啟後資料會重設）。",
+    "by_provider": "按提供商",
+    "by_model": "按模型",
+    "by_account": "按帳號",
+    "unavailable": "目前 API 未提供此維度。",
+    "recent_failures": "最近失敗請求",
+    "no_failures": "暫無最近失敗請求。",
+    "time_unavailable": "時間不可用"
+  },
   "quota_management": {
+    "provider_filter": "提供商",
+    "level_filter": "配額等級",
+    "filter_all": "全部",
     "title": "配額管理",
     "description": "集中查看 OAuth 配額與剩餘情況",
     "refresh_all_credentials": "重新整理全部憑證",

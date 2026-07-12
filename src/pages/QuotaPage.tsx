@@ -29,15 +29,28 @@ import {
 } from '@/components/quota';
 import type { AuthFileItem } from '@/types';
 import styles from './QuotaPage.module.scss';
+import type { QuotaPresentationLevel } from '@/features/quota/quotaPresentation';
+import { resolveAuthProvider } from '@/utils/quota';
+import { useQuotaStore } from '@/stores/useQuotaStore';
+import { quotaLevelFromState } from '@/features/quota/quotaFilters';
 
 export function QuotaPage() {
   const { t } = useTranslation();
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
+  const quotaState = useQuotaStore((state) => ({
+    antigravity: state.antigravityQuota,
+    claude: state.claudeQuota,
+    codex: state.codexQuota,
+    kimi: state.kimiQuota,
+    xai: state.xaiQuota,
+  }));
 
   const [files, setFiles] = useState<AuthFileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [providerFilter, setProviderFilter] = useState('all');
+  const [levelFilter, setLevelFilter] = useState<QuotaPresentationLevel | 'all'>('all');
 
   const disableControls = connectionStatus !== 'connected';
 
@@ -63,13 +76,25 @@ export function QuotaPage() {
 
   const filteredFiles = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return files;
-    return files.filter((file) =>
-      [file.name, file.type, file.provider, file.email, file.account, file.user, file.label].some(
-        (value) => typeof value === 'string' && value.toLowerCase().includes(query)
-      )
+    return files.filter(
+      (file) =>
+        (providerFilter === 'all' || resolveAuthProvider(file) === providerFilter) &&
+        (levelFilter === 'all' ||
+          quotaLevelFromState(
+            quotaState[resolveAuthProvider(file) as keyof typeof quotaState]?.[file.name]
+          ) === levelFilter) &&
+        (!query ||
+          [
+            file.name,
+            file.type,
+            file.provider,
+            file.email,
+            file.account,
+            file.user,
+            file.label,
+          ].some((value) => typeof value === 'string' && value.toLowerCase().includes(query)))
     );
-  }, [files, searchQuery]);
+  }, [files, searchQuery, providerFilter, levelFilter, quotaState]);
   const visibleNames = useMemo(
     () => new Set(filteredFiles.map((file) => file.name)),
     [filteredFiles]
@@ -83,6 +108,36 @@ export function QuotaPage() {
       </div>
 
       <div className={styles.quotaOverview}>
+        <label>
+          {t('quota_management.provider_filter')}
+          <select
+            value={providerFilter}
+            onChange={(event) => setProviderFilter(event.target.value)}
+          >
+            <option value="all">{t('quota_management.filter_all')}</option>
+            {[...new Set(files.map(resolveAuthProvider))].sort().map((provider) => (
+              <option key={provider} value={provider}>
+                {provider}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t('quota_management.level_filter')}
+          <select
+            value={levelFilter}
+            onChange={(event) =>
+              setLevelFilter(event.target.value as QuotaPresentationLevel | 'all')
+            }
+          >
+            <option value="all">{t('quota_management.filter_all')}</option>
+            {(['sufficient', 'low', 'critical', 'unknown'] as const).map((level) => (
+              <option key={level} value={level}>
+                {t(`quota_management.level_${level}`)}
+              </option>
+            ))}
+          </select>
+        </label>
         <div className={styles.quotaSearch}>
           <Input
             type="search"

@@ -96,6 +96,7 @@
     "status": "Connection Status:"
   },
   "nav": {
+    "request_stats": "Request Statistics",
     "dashboard": "Dashboard",
     "api_access": "API Access",
     "account_status": "Account Status",
@@ -117,6 +118,7 @@
     "gateway_settings": "Gateway Settings"
   },
   "nav_meta": {
+    "request_stats": "Traffic health and failures",
     "dashboard": "Operations overview",
     "api_access": "Endpoints, keys, models & examples",
     "account_status": "Auth files & credential health",
@@ -217,8 +219,11 @@
     "routing_strategy_fill_first": "fill-first (prioritize)"
   },
   "auth_files": {
-    "title": "Auth Files Management",
-    "title_section": "Auth Files",
+    "no_recent_request": "No recent request",
+    "request_details": "Request details",
+    "log_diagnostics": "Log diagnostics",
+    "title": "Account Status",
+    "title_section": "Accounts",
     "description": "Manage all CLI Proxy JSON auth files here (e.g. Qwen, Gemini, Vertex). Uploading a credential immediately enables the corresponding AI integration.",
     "upload_button": "Upload File",
     "delete_all_button": "Delete All",
@@ -1153,7 +1158,26 @@
       }
     }
   },
+  "request_stats": {
+    "title": "Request Statistics",
+    "description": "Request totals, provider distribution and recent failures.",
+    "loading": "Loading request statistics…",
+    "retry": "Retry",
+    "total": "Total",
+    "success_rate": "Success rate",
+    "period": "Statistics since {{time}} (current frontend session; service data resets after restart).",
+    "by_provider": "By provider",
+    "by_model": "By model",
+    "by_account": "By account",
+    "unavailable": "Unavailable from the current API.",
+    "recent_failures": "Recent failed requests",
+    "no_failures": "No recent failures.",
+    "time_unavailable": "Time unavailable"
+  },
   "quota_management": {
+    "provider_filter": "Provider",
+    "level_filter": "Quota level",
+    "filter_all": "All",
     "title": "Quota Management",
     "description": "Monitor OAuth quota status for Antigravity, Codex, Claude, Kimi, and xAI credentials.",
     "refresh_all_credentials": "Refresh all credentials",

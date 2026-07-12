@@ -96,6 +96,7 @@
     "status": "Статус подключения:"
   },
   "nav": {
+    "request_stats": "Статистика запросов",
     "dashboard": "Панель",
     "api_access": "Доступ к API",
     "account_status": "Состояние аккаунтов",
@@ -117,6 +118,7 @@
     "gateway_settings": "Настройки шлюза"
   },
   "nav_meta": {
+    "request_stats": "Состояние трафика и ошибки",
     "dashboard": "Обзор работы",
     "api_access": "Адреса, ключи, модели и примеры",
     "account_status": "Файлы авторизации и состояние данных",
@@ -217,8 +219,11 @@
     "routing_strategy_fill_first": "fill-first (приоритет)"
   },
   "auth_files": {
-    "title": "Управление файлами авторизации",
-    "title_section": "Файлы авторизации",
+    "no_recent_request": "Нет недавних запросов",
+    "request_details": "Детали запросов",
+    "log_diagnostics": "Диагностика журналов",
+    "title": "Состояние аккаунтов",
+    "title_section": "Аккаунты",
     "description": "Управляйте всеми JSON-файлами авторизации CLI Proxy (например, Qwen, Gemini, Vertex). Загрузка учётных данных сразу включает соответствующую интеграцию AI.",
     "upload_button": "Загрузить файл",
     "delete_all_button": "Удалить всё",
@@ -1141,7 +1146,26 @@
       }
     }
   },
+  "request_stats": {
+    "title": "Статистика запросов",
+    "description": "Итоги запросов, распределение по провайдерам и последние ошибки.",
+    "loading": "Загрузка статистики…",
+    "retry": "Повторить",
+    "total": "Всего",
+    "success_rate": "Успешность",
+    "period": "Статистика с {{time}} (текущий сеанс; данные сбрасываются после перезапуска сервиса).",
+    "by_provider": "По провайдерам",
+    "by_model": "По моделям",
+    "by_account": "По аккаунтам",
+    "unavailable": "Текущий API не предоставляет эти данные.",
+    "recent_failures": "Последние ошибки",
+    "no_failures": "Недавних ошибок нет.",
+    "time_unavailable": "Время недоступно"
+  },
   "quota_management": {
+    "provider_filter": "Провайдер",
+    "level_filter": "Уровень квоты",
+    "filter_all": "Все",
     "title": "Управление квотами",
     "description": "Следите за статусом квот OAuth для учётных данных Antigravity, Codex, Claude, Kimi и xAI.",
     "refresh_all_credentials": "Обновить все учётные данные",

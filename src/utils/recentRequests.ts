@@ -166,6 +166,15 @@ export function sumRecentRequests(buckets: RecentRequestBucket[]): {
   );
 }
 
+export function latestRecentRequestTime(buckets: RecentRequestBucket[]): string | undefined {
+  return normalizeRecentRequestBuckets(buckets)
+    .map((bucket) => bucket.time)
+    .filter((time): time is string =>
+      typeof time === 'string' ? Number.isFinite(Date.parse(time)) : false
+    )
+    .sort((left, right) => Date.parse(right) - Date.parse(left))[0];
+}
+
 export function statusBarDataFromRecentRequests(buckets: RecentRequestBucket[]): StatusBarData {
   const normalizedBuckets = normalizeRecentRequestBuckets(buckets);
   const emptyBucketCount = Math.max(0, RECENT_REQUEST_BLOCK_COUNT - normalizedBuckets.length);
