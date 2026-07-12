@@ -19,6 +19,7 @@ import {
   buildPythonExample,
   deriveApiEndpoints,
   filterModelsByQuery,
+  getModelsPanelState,
   maskApiKey,
 } from './apiAccess';
 import styles from './ApiAccessPage.module.scss';
@@ -43,6 +44,7 @@ export function ApiAccessPage() {
   const [revealedKeys, setRevealedKeys] = useState<Set<number>>(() => new Set());
   const [modelQuery, setModelQuery] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
+  const [modelsRequestComplete, setModelsRequestComplete] = useState(false);
   const [exampleLanguage, setExampleLanguage] = useState<ExampleLanguage>('curl');
 
   const endpoints = useMemo(() => {
@@ -59,6 +61,7 @@ export function ApiAccessPage() {
 
       setKeysLoading(true);
       setKeysError('');
+      setModelsRequestComplete(false);
 
       let keys: string[] = [];
       try {
@@ -80,6 +83,8 @@ export function ApiAccessPage() {
         );
       } catch {
         setSelectedModel('');
+      } finally {
+        setModelsRequestComplete(true);
       }
     },
     [connectionStatus, endpoints, fetchModels, t]
@@ -93,6 +98,13 @@ export function ApiAccessPage() {
     () => filterModelsByQuery(models, modelQuery),
     [modelQuery, models]
   );
+  const modelsPanelState = getModelsPanelState({
+    hasCompletedRequest: modelsRequestComplete,
+    isLoading: modelsLoading,
+    error: modelsError,
+    totalModels: models.length,
+    visibleModels: filteredModels.length,
+  });
 
   const exampleModel = selectedModel || '<MODEL_ID>';
   const examples = useMemo(() => {
@@ -257,20 +269,20 @@ export function ApiAccessPage() {
             />
           </label>
 
-          {modelsLoading ? (
+          {modelsPanelState === 'loading' ? (
             <p className={styles.mutedText}>{t('api_access.models_loading')}</p>
           ) : null}
-          {modelsError ? <p className={styles.errorText}>{modelsError}</p> : null}
-          {!modelsLoading && !modelsError && filteredModels.length === 0 ? (
+          {modelsPanelState === 'error' ? <p className={styles.errorText}>{modelsError}</p> : null}
+          {modelsPanelState === 'empty' || modelsPanelState === 'no-results' ? (
             <p className={styles.emptyText}>
-              {models.length === 0
+              {modelsPanelState === 'empty'
                 ? t('api_access.models_empty')
                 : t('api_access.models_no_results')}
             </p>
           ) : null}
 
           <div className={styles.modelList}>
-            {filteredModels.map((model) => {
+            {(modelsPanelState === 'ready' ? filteredModels : []).map((model) => {
               const isSelected = selectedModel === model.name;
               return (
                 <div
@@ -323,15 +335,14 @@ export function ApiAccessPage() {
 
         <div
           className={styles.exampleTabs}
-          role="tablist"
+          role="group"
           aria-label={t('api_access.example_language')}
         >
           {EXAMPLE_LANGUAGES.map((language) => (
             <button
               key={language}
               type="button"
-              role="tab"
-              aria-selected={exampleLanguage === language}
+              aria-pressed={exampleLanguage === language}
               className={exampleLanguage === language ? styles.exampleTabActive : ''}
               onClick={() => setExampleLanguage(language)}
             >

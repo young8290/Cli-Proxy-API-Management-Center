@@ -27,6 +27,28 @@ export const filterModelsByQuery = (models: ModelInfo[], query: string): ModelIn
   );
 };
 
+export type ModelsPanelState = 'loading' | 'error' | 'empty' | 'no-results' | 'ready';
+
+export const getModelsPanelState = ({
+  hasCompletedRequest,
+  isLoading,
+  error,
+  totalModels,
+  visibleModels,
+}: {
+  hasCompletedRequest: boolean;
+  isLoading: boolean;
+  error: string | null;
+  totalModels: number;
+  visibleModels: number;
+}): ModelsPanelState => {
+  if (!hasCompletedRequest || isLoading) return 'loading';
+  if (error) return 'error';
+  if (totalModels === 0) return 'empty';
+  if (visibleModels === 0) return 'no-results';
+  return 'ready';
+};
+
 const withoutTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
 const explicitScheme = /^([a-z][a-z\d+.-]*):(?=\/\/|[^\d])/i;
 
