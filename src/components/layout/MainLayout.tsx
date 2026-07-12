@@ -27,6 +27,7 @@ import {
   IconSidebarStore,
   IconSidebarSystem,
   IconChevronDown,
+  IconKey,
 } from '@/components/ui/icons';
 import { INLINE_LOGO_JPEG } from '@/assets/logoInline';
 import {
@@ -43,6 +44,7 @@ import {
   type PluginResourceEntry,
 } from '@/features/plugins/pluginResources';
 import { APIKEY_FUN_DISPLAY_NAME, hasApiKeyFunConfig } from '@/features/providers/sponsor';
+import { API_ACCESS_ROUTE } from '@/features/apiAccess/apiAccess';
 import { triggerHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { LANGUAGE_LABEL_KEYS, LANGUAGE_ORDER } from '@/utils/constants';
 import { isSupportedLanguage } from '@/utils/language';
@@ -50,6 +52,7 @@ import type { Theme } from '@/types';
 
 const sidebarIcons: Record<string, ReactNode> = {
   dashboard: <IconSidebarDashboard size={18} />,
+  apiAccess: <IconKey size={18} />,
   quickStart: <IconSidebarQuickStart size={18} />,
   aiProviders: <IconSidebarProviders size={18} />,
   authFiles: <IconSidebarAuthFiles size={18} />,
@@ -524,8 +527,8 @@ export function MainLayout() {
 
   const navGroups: SidebarNavGroup[] = [
     {
-      id: 'operate',
-      labelKey: 'nav_groups.operate',
+      id: 'overview',
+      labelKey: 'nav_groups.overview',
       items: [
         {
           path: '/',
@@ -533,24 +536,29 @@ export function MainLayout() {
           metaKey: 'nav_meta.dashboard',
           icon: sidebarIcons.dashboard,
         },
-        ...(!isApiKeyFunConfigured ? [quickStartNavItem] : []),
+        {
+          path: API_ACCESS_ROUTE.path,
+          labelKey: 'nav.api_access',
+          metaKey: 'nav_meta.api_access',
+          icon: sidebarIcons.apiAccess,
+        },
       ],
     },
     {
-      id: 'gateway',
-      labelKey: 'nav_groups.gateway',
+      id: 'account-quota',
+      labelKey: 'nav_groups.account_quota',
       items: [
         {
-          path: '/ai-providers',
-          labelKey: 'nav.ai_providers',
-          metaKey: 'nav_meta.ai_providers',
-          icon: sidebarIcons.aiProviders,
+          path: '/auth-files',
+          labelKey: 'nav.account_status',
+          metaKey: 'nav_meta.account_status',
+          icon: sidebarIcons.authFiles,
         },
         {
-          path: '/auth-files',
-          labelKey: 'nav.auth_files',
-          metaKey: 'nav_meta.auth_files',
-          icon: sidebarIcons.authFiles,
+          path: '/quota',
+          labelKey: 'nav.quota_management',
+          metaKey: 'nav_meta.quota_management',
+          icon: sidebarIcons.quota,
         },
         {
           path: '/oauth',
@@ -558,19 +566,12 @@ export function MainLayout() {
           metaKey: 'nav_meta.oauth',
           icon: sidebarIcons.oauth,
         },
-        ...(isApiKeyFunConfigured ? [quickStartNavItem] : []),
       ],
     },
     {
-      id: 'observe',
-      labelKey: 'nav_groups.observe',
+      id: 'requests-diagnostics',
+      labelKey: 'nav_groups.requests_diagnostics',
       items: [
-        {
-          path: '/quota',
-          labelKey: 'nav.quota_management',
-          metaKey: 'nav_meta.quota_management',
-          icon: sidebarIcons.quota,
-        },
         {
           path: '/logs',
           labelKey: 'nav.logs',
@@ -580,9 +581,16 @@ export function MainLayout() {
       ],
     },
     {
-      id: 'control',
-      labelKey: 'nav_groups.control',
+      id: 'gateway-settings',
+      labelKey: 'nav_groups.gateway_settings',
       items: [
+        quickStartNavItem,
+        {
+          path: '/ai-providers',
+          labelKey: 'nav.ai_providers',
+          metaKey: 'nav_meta.ai_providers',
+          icon: sidebarIcons.aiProviders,
+        },
         {
           path: '/config',
           labelKey: 'nav.config_management',
@@ -605,6 +613,7 @@ export function MainLayout() {
               },
             ]
           : []),
+        ...pluginPageNavItems,
         {
           path: '/system',
           labelKey: 'nav.system_info',
@@ -613,15 +622,6 @@ export function MainLayout() {
         },
       ],
     },
-    ...(pluginPageNavItems.length > 0
-      ? [
-          {
-            id: 'plugin-pages',
-            labelKey: 'nav_groups.plugin_pages',
-            items: pluginPageNavItems,
-          },
-        ]
-      : []),
   ];
   const navItems = navGroups.flatMap((group) => flattenNavItems(group.items));
   const navOrder = navItems.map((item) => item.path);

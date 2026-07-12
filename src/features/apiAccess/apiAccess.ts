@@ -1,8 +1,31 @@
+import type { ModelInfo } from '@/utils/models';
+
 export interface ApiEndpoints {
   serviceOrigin: string;
   openAiBaseUrl: string;
   modelsUrl: string;
 }
+
+export const API_ACCESS_ROUTE = {
+  path: '/api-access',
+  legacyPath: '/api-keys',
+} as const;
+
+export const maskApiKey = (value: string): string => {
+  if (value.length <= 8) return '•'.repeat(Math.max(value.length, 8));
+  return `${value.slice(0, 4)}${'•'.repeat(8)}${value.slice(-4)}`;
+};
+
+export const filterModelsByQuery = (models: ModelInfo[], query: string): ModelInfo[] => {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return models;
+
+  return models.filter((model) =>
+    [model.name, model.alias, model.description].some((value) =>
+      value?.toLowerCase().includes(normalizedQuery)
+    )
+  );
+};
 
 const withoutTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
 const explicitScheme = /^([a-z][a-z\d+.-]*):(?=\/\/|[^\d])/i;
